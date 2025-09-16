@@ -227,10 +227,10 @@ const Dashboard: React.FC = () => {
 
   // Mock tasks data - in a real app, this would come from the API
   const tasks = [
-    { id: 1, title: 'İşçilərin qiymətləndirilməsi', dueDate: '2023-10-20', priority: 'high', completed: false },
-    { id: 2, title: 'Performans hesabatı təqdimatı', dueDate: '2023-10-22', priority: 'medium', completed: false },
-    { id: 3, title: 'Komanda görüşü hazırlığı', dueDate: '2023-10-25', priority: 'low', completed: true },
-    { id: 4, title: 'İdeya bankına baxış', dueDate: '2023-10-28', priority: 'medium', completed: false },
+    { id: 1, title: 'İşçilərin qiymətləndirilməsi', dueDate: '2023-10-20', priority: 'high' as const, completed: false },
+    { id: 2, title: 'Performans hesabatı təqdimatı', dueDate: '2023-10-22', priority: 'medium' as const, completed: false },
+    { id: 3, title: 'Komanda görüşü hazırlığı', dueDate: '2023-10-25', priority: 'low' as const, completed: true },
+    { id: 4, title: 'İdeya bankına baxış', dueDate: '2023-10-28', priority: 'medium' as const, completed: false },
   ];
 
   const dashboardCards = getDashboardCards();

@@ -24,9 +24,10 @@ export interface DashboardData {
   
   // Common data
   recent_activities: Array<{
+    id: number;
     text: string;
     time: string;
-    type?: string;
+    type?: 'success' | 'info' | 'warning';
   }>;
 }
 
