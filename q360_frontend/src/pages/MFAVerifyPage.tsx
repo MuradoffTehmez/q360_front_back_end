@@ -1,43 +1,47 @@
-// LoginPage.tsx
+// MFAVerifyPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
-import { Sun, Moon, Mail, Lock } from 'lucide-react';
+import { Sun, Moon, Shield, Key } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
-import { AuthService, User } from '../services/AuthService';
+import { AuthService } from '../services/AuthService';
 
-const LoginPage: React.FC = () => {
+const MFAVerifyPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('cavid@q360.az');
-  const [password, setPassword] = useState('demo123');
+  const location = useLocation();
+  const [verificationCode, setVerificationCode] = useState('');
+  const [backupCode, setBackupCode] = useState('');
+  const [useBackupCode, setUseBackupCode] = useState(false);
   const [errors, setErrors] = useState({
-    email: '',
-    password: '',
+    verificationCode: '',
+    backupCode: '',
     general: ''
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  // Get user ID from location state
+  const userId = location.state?.userId;
+
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { email: '', password: '', general: '' };
+    const newErrors = { verificationCode: '', backupCode: '', general: '' };
 
-    if (!email) {
-      newErrors.email = 'Email ünvanı tələb olunur';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Yanlış email formatı';
-      isValid = false;
-    }
-
-    if (!password) {
-      newErrors.password = 'Şifrə tələb olunur';
-      isValid = false;
-    } else if (password.length < 6) {
-      newErrors.password = 'Şifrə ən azı 6 simvol olmalıdır';
-      isValid = false;
+    if (useBackupCode) {
+      if (!backupCode) {
+        newErrors.backupCode = 'Ehtiyat kod tələb olunur';
+        isValid = false;
+      }
+    } else {
+      if (!verificationCode) {
+        newErrors.verificationCode = 'Təsdiqləmə kodu tələb olunur';
+        isValid = false;
+      } else if (verificationCode.length !== 6) {
+        newErrors.verificationCode = 'Kod 6 rəqəmli olmalıdır';
+        isValid = false;
+      }
     }
 
     setErrors(newErrors);
@@ -49,27 +53,24 @@ const LoginPage: React.FC = () => {
     
     if (validateForm()) {
       setIsLoading(true);
-      setErrors(prev => ({ ...prev, general: '' }));
+      setErrors({ verificationCode: '', backupCode: '', general: '' });
       
       try {
-        const result: any = await AuthService.login(email, password);
+        const result = await AuthService.verifyMFA(
+          userId, 
+          useBackupCode ? '' : verificationCode, 
+          useBackupCode ? backupCode : undefined
+        );
         
         if (result) {
-          // Check if MFA is required
-          if (result.mfaRequired) {
-            // Navigate to MFA verification page with user ID
-            navigate('/mfa-verify', { state: { userId: result.userId } });
-          } else {
-            // Successful login
-            navigate('/dashboard');
-          }
+          // Successful MFA verification
+          navigate('/dashboard');
         }
       } catch (error: any) {
-        // Failed login
         setErrors({
-          email: '',
-          password: '',
-          general: error.message || 'Email və ya şifrə yanlışdır'
+          verificationCode: '',
+          backupCode: '',
+          general: error.message || 'MFA təsdiqləmə uğursuz oldu'
         });
       } finally {
         setIsLoading(false);
@@ -154,6 +155,26 @@ const LoginPage: React.FC = () => {
           </Button>
         </div>
         
+        <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-lg)' }}>
+          <div style={{
+            width: '70px',
+            height: '70px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto var(--spacing-md) auto',
+            color: 'var(--primary-color)'
+          }}>
+            <Shield size={32} />
+          </div>
+          <h2 style={{ margin: '0 0 var(--spacing-sm) 0' }}>İki Faktorlu Autentifikasiya</h2>
+          <p className="text-secondary" style={{ margin: 0 }}>
+            Autentifikator tətbiqinizdən 6 rəqəmli kodu daxil edin
+          </p>
+        </div>
+        
         {errors.general && (
           <div style={{ 
             padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -168,101 +189,72 @@ const LoginPage: React.FC = () => {
         )}
         
         <form onSubmit={handleSubmit} style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-            <label htmlFor="email" className="text-medium" style={{ 
-              display: 'block', 
-              marginBottom: 'var(--spacing-sm)',
-              fontWeight: 500
-            }}>
-              Email
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={20} style={{ 
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--secondary-text-color)'
-              }} />
+          {!useBackupCode ? (
+            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+              <label htmlFor="verificationCode" className="text-medium" style={{ 
+                display: 'block', 
+                marginBottom: 'var(--spacing-sm)',
+                fontWeight: 500
+              }}>
+                Təsdiqləmə kodu
+              </label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                error={!!errors.email}
-                errorMessage={errors.email}
-                placeholder="email@example.com"
+                id="verificationCode"
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                error={!!errors.verificationCode}
+                errorMessage={errors.verificationCode}
+                placeholder="6 rəqəmli kod"
                 style={{ 
-                  paddingLeft: '40px',
                   fontSize: 'var(--font-size-medium)'
                 }}
               />
             </div>
-          </div>
-          
-          <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-            <label htmlFor="password" className="text-medium" style={{ 
-              display: 'block', 
-              marginBottom: 'var(--spacing-sm)',
-              fontWeight: 500
-            }}>
-              Şifrə
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Lock size={20} style={{ 
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--secondary-text-color)'
-              }} />
+          ) : (
+            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+              <label htmlFor="backupCode" className="text-medium" style={{ 
+                display: 'block', 
+                marginBottom: 'var(--spacing-sm)',
+                fontWeight: 500
+              }}>
+                Ehtiyat kod
+              </label>
               <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                error={!!errors.password}
-                errorMessage={errors.password}
-                placeholder="••••••••"
+                id="backupCode"
+                type="text"
+                value={backupCode}
+                onChange={(e) => setBackupCode(e.target.value)}
+                error={!!errors.backupCode}
+                errorMessage={errors.backupCode}
+                placeholder="Ehtiyat kodunuzu daxil edin"
                 style={{ 
-                  paddingLeft: '40px',
                   fontSize: 'var(--font-size-medium)'
                 }}
               />
             </div>
-          </div>
+          )}
           
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            marginBottom: 'var(--spacing-lg)',
+            marginBottom: 'var(--spacing-lg)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input 
-                type="checkbox" 
-                id="remember" 
-                style={{ 
-                  marginRight: 'var(--spacing-sm)',
-                  accentColor: 'var(--primary-color)'
-                }} 
-              />
-              <label htmlFor="remember" className="text-small">
-                Məni xatırla
-              </label>
-            </div>
-            
-            <a 
-              href="/forgot-password" 
-              style={{ 
-                color: 'var(--primary-color)', 
-                textDecoration: 'none',
+            <button
+              type="button"
+              onClick={() => setUseBackupCode(!useBackupCode)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary-color)',
+                cursor: 'pointer',
                 fontSize: 'var(--font-size-small)',
                 fontWeight: 500
               }}
             >
-              Şifrəni unutdum?
-            </a>
+              {useBackupCode ? 'Normal kod istifadə et' : 'Ehtiyat kod istifadə et'}
+            </button>
           </div>
           
           <Button 
@@ -276,7 +268,7 @@ const LoginPage: React.FC = () => {
               fontWeight: 600
             }}
           >
-            {isLoading ? 'Giriş edilir...' : 'Daxil Ol'}
+            {isLoading ? 'Təsdiqlənir...' : 'Daxil ol'}
           </Button>
         </form>
         
@@ -284,17 +276,25 @@ const LoginPage: React.FC = () => {
           textAlign: 'center', 
           marginTop: 'var(--spacing-lg)',
           paddingTop: 'var(--spacing-lg)',
-          borderTop: '1px solid var(--border-color)',
-          position: 'relative',
-          zIndex: 1
+          borderTop: '1px solid var(--border-color)'
         }}>
-          <p className="text-secondary" style={{ margin: 0 }}>
-            Hesabınız yoxdur? <a href="/register" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>Qeydiyyatdan keçin</a>
-          </p>
+          <button
+            onClick={() => navigate('/login')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary-color)',
+              cursor: 'pointer',
+              fontSize: 'var(--font-size-small)',
+              fontWeight: 500
+            }}
+          >
+            Fərqli hesaba daxil ol
+          </button>
         </div>
       </Card>
     </div>
   );
 };
 
-export default LoginPage;
+export default MFAVerifyPage;

@@ -42,6 +42,11 @@ class User(AbstractUser):
     password_reset_token = models.CharField(max_length=100, blank=True)
     password_reset_expires = models.DateTimeField(null=True, blank=True)
     
+    # MFA fields
+    mfa_enabled = models.BooleanField(default=False)
+    mfa_secret = models.CharField(max_length=100, blank=True)
+    mfa_backup_codes = models.JSONField(default=list, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -81,3 +86,38 @@ class User(AbstractUser):
         self.password_reset_expires = timezone.now() + timezone.timedelta(hours=24)
         self.save()
         return self.password_reset_token
+    
+    def generate_mfa_secret(self):
+        """Generate a secret key for MFA"""
+        import pyotp
+        self.mfa_secret = pyotp.random_base32()
+        self.save()
+        return self.mfa_secret
+    
+    def generate_backup_codes(self):
+        """Generate backup codes for MFA"""
+        import secrets
+        codes = []
+        for _ in range(10):
+            codes.append(secrets.token_hex(3))
+        self.mfa_backup_codes = codes
+        self.save()
+        return codes
+    
+    def verify_mfa_token(self, token):
+        """Verify MFA token"""
+        import pyotp
+        if not self.mfa_secret:
+            return False
+        
+        totp = pyotp.TOTP(self.mfa_secret)
+        return totp.verify(token)
+    
+    def verify_backup_code(self, code):
+        """Verify backup code"""
+        if code in self.mfa_backup_codes:
+            # Remove the used backup code
+            self.mfa_backup_codes.remove(code)
+            self.save()
+            return True
+        return False

@@ -8,6 +8,8 @@ import RegistrationPage from './pages/RegistrationPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import MFAPage from './pages/MFAPage';
+import MFAVerifyPage from './pages/MFAVerifyPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
 import EnhancedProfilePage from './pages/EnhancedProfilePage';
@@ -73,6 +75,14 @@ function App() {
             <Route 
               path="/verify-email" 
               element={<VerifyEmailPage />} 
+            />
+            <Route 
+              path="/mfa" 
+              element={isLoggedIn ? <MFAPage /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/mfa-verify" 
+              element={<MFAVerifyPage />} 
             />
             <Route 
               path="/dashboard" 

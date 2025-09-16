@@ -55,51 +55,179 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
   const handleNavigate = (page: string) => {
     setActivePage(page);
     navigate(`/${page}`);
   };
 
-  // Mock data for dashboard cards
-  const dashboardCards = [
-    { 
-      title: 'Gözləyən Tapşırıqlar', 
-      value: '12', 
-      description: 'Yeni qiymətləndirmə',
-      icon: <CheckCircle size={24} />,
-      color: 'var(--primary-color)',
-      change: '+2 bu həftə',
-      trend: 'up'
-    },
-    { 
-      title: 'Performans Xülasəsi', 
-      value: '85%', 
-      description: 'Ortalama skor',
-      icon: <TrendingUp size={24} />,
-      color: 'var(--success-color)',
-      change: '+5% bu ay',
-      trend: 'up'
-    },
-    { 
-      title: 'Son Fəaliyyətlər', 
-      value: '24', 
-      description: 'Bu ay fəaliyyət',
-      icon: <Activity size={24} />,
-      color: 'var(--primary-color)',
-      change: '+3 bu həftə',
-      trend: 'up'
-    },
-    { 
-      title: 'İştirak Faizi', 
-      value: '78%', 
-      description: 'Tamamlanma dərəcəsi',
-      icon: <Users size={24} />,
-      color: 'var(--primary-color)',
-      change: '-2% bu ay',
-      trend: 'down'
-    },
-  ];
+  // Fetch dashboard data from API
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Simulate API call
+        // In a real app, this would be:
+        // const response = await fetch('/api/reports/dashboard/');
+        // const data = await response.json();
+        
+        // Mock data for now
+        const mockData = {
+          total_users: 126,
+          total_ideas: 42,
+          total_evaluations: 85,
+          pending_evaluations: 12,
+          recent_activities: [
+            { text: 'Yeni qiymətləndirmə forması tamamlandı', time: '2 saat əvvəl', type: 'success' },
+            { text: 'Performans hesabatı hazırlandı', time: '5 saat əvvəl', type: 'info' },
+            { text: 'Rəhbər panelinə daxil olundu', time: '1 gün əvvəl', type: 'info' },
+            { text: 'Profil məlumatları yeniləndi', time: '2 gün əvvəl', type: 'warning' },
+            { text: 'Yeni qiymətləndirmə dövrü yaradıldı', time: '3 gün əvvəl', type: 'success' },
+          ],
+          team_performance: 85,
+          performance_score: 78,
+          team_members: 12,
+          team_evaluations: 8,
+          pending_team_evaluations: 3,
+          my_evaluations: 5,
+          pending_my_evaluations: 2,
+          my_ideas: 3
+        };
+        
+        setDashboardData(mockData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Dashboard cards based on user role
+  const getDashboardCards = () => {
+    if (!dashboardData || !currentUser) return [];
+
+    if (currentUser.role === 'admin') {
+      return [
+        { 
+          title: 'Ümumi İstifadəçilər', 
+          value: dashboardData.total_users, 
+          description: 'Sistemdə qeydiyyatdan keçmiş istifadəçilər',
+          icon: <Users size={24} />,
+          color: 'var(--primary-color)',
+          change: '+5 bu həftə',
+          trend: 'up'
+        },
+        { 
+          title: 'Ümumi İdeyalar', 
+          value: dashboardData.total_ideas, 
+          description: 'Təqdim edilmiş ideyalar',
+          icon: <Lightbulb size={24} />,
+          color: 'var(--success-color)',
+          change: '+2 bu həftə',
+          trend: 'up'
+        },
+        { 
+          title: 'Ümumi Qiymətləndirmələr', 
+          value: dashboardData.total_evaluations, 
+          description: 'Tamamlanmış qiymətləndirmələr',
+          icon: <TrendingUp size={24} />,
+          color: 'var(--primary-color)',
+          change: '+7 bu ay',
+          trend: 'up'
+        },
+        { 
+          title: 'Gözləyən Qiymətləndirmələr', 
+          value: dashboardData.pending_evaluations, 
+          description: 'Tamamlanmamış qiymətləndirmələr',
+          icon: <Clock size={24} />,
+          color: 'var(--warning-color)',
+          change: '-1 bu həftə',
+          trend: 'down'
+        },
+      ];
+    } else if (currentUser.role === 'manager') {
+      return [
+        { 
+          title: 'Komanda Üzvləri', 
+          value: dashboardData.team_members, 
+          description: 'Ümumi komanda üzvləri',
+          icon: <Users size={24} />,
+          color: 'var(--primary-color)',
+          change: '+1 bu ay',
+          trend: 'up'
+        },
+        { 
+          title: 'Komanda Qiymətləndirmələri', 
+          value: dashboardData.team_evaluations, 
+          description: 'Komanda qiymətləndirmələri',
+          icon: <TrendingUp size={24} />,
+          color: 'var(--success-color)',
+          change: '+3 bu həftə',
+          trend: 'up'
+        },
+        { 
+          title: 'Gözləyən Komanda Qiymətləndirmələri', 
+          value: dashboardData.pending_team_evaluations, 
+          description: 'Tamamlanmamış qiymətləndirmələr',
+          icon: <Clock size={24} />,
+          color: 'var(--warning-color)',
+          change: '-1 bu həftə',
+          trend: 'down'
+        },
+        { 
+          title: 'Komanda Performansı', 
+          value: `${dashboardData.team_performance}%`, 
+          description: 'Ortalama komanda performansı',
+          icon: <Target size={24} />,
+          color: 'var(--primary-color)',
+          change: '+2% bu ay',
+          trend: 'up'
+        },
+      ];
+    } else {
+      return [
+        { 
+          title: 'Mənim Qiymətləndirmələrim', 
+          value: dashboardData.my_evaluations, 
+          description: 'Ümumi qiymətləndirmələr',
+          icon: <TrendingUp size={24} />,
+          color: 'var(--primary-color)',
+          change: '+1 bu ay',
+          trend: 'up'
+        },
+        { 
+          title: 'Gözləyən Qiymətləndirmələr', 
+          value: dashboardData.pending_my_evaluations, 
+          description: 'Tamamlanmamış qiymətləndirmələr',
+          icon: <Clock size={24} />,
+          color: 'var(--warning-color)',
+          change: '-1 bu həftə',
+          trend: 'down'
+        },
+        { 
+          title: 'Mənim İdeyalarım', 
+          value: dashboardData.my_ideas, 
+          description: 'Təqdim edilmiş ideyalar',
+          icon: <Lightbulb size={24} />,
+          color: 'var(--success-color)',
+          change: '+1 bu həftə',
+          trend: 'up'
+        },
+        { 
+          title: 'Performans Xülasəsi', 
+          value: `${dashboardData.performance_score}%`, 
+          description: 'Ortalama skor',
+          icon: <Award size={24} />,
+          color: 'var(--primary-color)',
+          change: '+3% bu ay',
+          trend: 'up'
+        },
+      ];
+    }
+  };
 
   // Mock performance data
   const performanceData = [
@@ -121,15 +249,6 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
     { subject: 'İdarəetmə', A: 85, fullMark: 150 },
   ];
 
-  // Mock activity data
-  const activities = [
-    { id: 1, text: 'Yeni qiymətləndirmə forması tamamlandı', time: '2 saat əvvəl', type: 'success' },
-    { id: 2, text: 'Performans hesabatı hazırlandı', time: '5 saat əvvəl', type: 'info' },
-    { id: 3, text: 'Rəhbər panelinə daxil olundu', time: '1 gün əvvəl', type: 'info' },
-    { id: 4, text: 'Profil məlumatları yeniləndi', time: '2 gün əvvəl', type: 'warning' },
-    { id: 5, text: 'Yeni qiymətləndirmə dövrü yaradıldı', time: '3 gün əvvəl', type: 'success' },
-  ];
-
   // Mock tasks data
   const tasks = [
     { id: 1, title: 'İşçilərin qiymətləndirilməsi', dueDate: '2023-10-20', priority: 'high', completed: false },
@@ -138,14 +257,7 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
     { id: 4, title: 'İdeya bankına baxış', dueDate: '2023-10-28', priority: 'medium', completed: false },
   ];
 
-  useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 800);
-    
-    return () => clearTimeout(timer);
-  }, []);
+  const dashboardCards = getDashboardCards();
 
   if (loading) {
     return (
@@ -288,7 +400,7 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
                 <Bell size={20} />
                 Son Fəaliyyətlər
               </h3>
-              <ActivityFeed activities={activities} />
+              <ActivityFeed activities={dashboardData?.recent_activities || []} />
             </Card>
           </div>
           

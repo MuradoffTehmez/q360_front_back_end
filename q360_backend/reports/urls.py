@@ -8,6 +8,7 @@ router.register(r'templates', views.ReportTemplateViewSet)
 router.register(r'generated-reports', views.GeneratedReportViewSet)
 router.register(r'benchmarks', views.BenchmarkViewSet)
 router.register(r'talent-matrix', views.TalentMatrixViewSet)
+router.register(r'dashboard', views.DashboardViewSet, basename='dashboard')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -18,9 +18,9 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name', 
             'role', 'department', 'manager', 'employee_id', 
             'hire_date', 'position', 'phone', 'avatar',
-            'date_joined', 'last_login', 'email_verified'
+            'date_joined', 'last_login', 'email_verified', 'mfa_enabled'
         ]
-        read_only_fields = ['date_joined', 'last_login', 'email_verified']
+        read_only_fields = ['date_joined', 'last_login', 'email_verified', 'mfa_enabled']
 
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -88,3 +88,46 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 class EmailVerificationSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+class MFASetupSerializer(serializers.Serializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    
+    def create(self, validated_data):
+        user = validated_data['user']
+        if not user.mfa_secret:
+            user.generate_mfa_secret()
+        return user
+
+class MFATokenSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=6)
+    backup_code = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate(self, attrs):
+        user = self.context['request'].user
+        token = attrs.get('token')
+        backup_code = attrs.get('backup_code', '')
+        
+        # Try to verify with token first
+        if user.verify_mfa_token(token):
+            return attrs
+        
+        # If token fails, try backup code
+        if backup_code and user.verify_backup_code(backup_code):
+            return attrs
+        
+        raise serializers.ValidationError("Invalid MFA token or backup code")
+
+class MFAEnableSerializer(serializers.Serializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    token = serializers.CharField(max_length=6)
+    
+    def validate_token(self, value):
+        user = self.context['request'].user
+        if not user.verify_mfa_token(value):
+            raise serializers.ValidationError("Invalid MFA token")
+        return value
+    
+    def update(self, instance, validated_data):
+        instance.mfa_enabled = True
+        instance.save()
+        return instance

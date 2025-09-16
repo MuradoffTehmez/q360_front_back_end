@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import User
-from .serializers import UserSerializer, UserCreateSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, EmailVerificationSerializer
+from .serializers import UserSerializer, UserCreateSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, EmailVerificationSerializer, MFASetupSerializer, MFATokenSerializer, MFAEnableSerializer
 
 class UserListView(generics.ListAPIView):
     queryset = User.objects.all()
@@ -44,12 +44,40 @@ def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
+        # Check if MFA is enabled
+        if user.mfa_enabled:
+            # We'll return a special response indicating MFA is required
+            return Response({
+                'mfa_required': True,
+                'user_id': user.id,
+                'message': 'MFA required'
+            }, status=status.HTTP_200_OK)
+        
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         })
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def mfa_verify_view(request):
+    """Verify MFA token for a user"""
+    serializer = MFATokenSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        user_id = request.data.get('user_id')
+        try:
+            user = User.objects.get(id=user_id)
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'user': UserSerializer(user).data,
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            })
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -126,6 +154,57 @@ def verify_email_view(request):
         except User.DoesNotExist:
             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mfa_setup_view(request):
+    """Setup MFA for a user"""
+    serializer = MFASetupSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        user = request.user
+        # Generate secret if not exists
+        if not user.mfa_secret:
+            user.generate_mfa_secret()
+        
+        # Generate backup codes
+        backup_codes = user.generate_backup_codes()
+        
+        # Return QR code URL for authenticator app
+        import pyotp
+        totp_uri = pyotp.totp.TOTP(user.mfa_secret).provisioning_uri(
+            name=user.email,
+            issuer_name="Q360"
+        )
+        
+        return Response({
+            'secret': user.mfa_secret,
+            'backup_codes': backup_codes,
+            'qr_code_url': totp_uri
+        })
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mfa_enable_view(request):
+    """Enable MFA for a user after verifying a token"""
+    serializer = MFAEnableSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        user = request.user
+        user.mfa_enabled = True
+        user.save()
+        return Response({'message': 'MFA enabled successfully'})
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mfa_disable_view(request):
+    """Disable MFA for a user"""
+    user = request.user
+    user.mfa_enabled = False
+    user.mfa_secret = ''
+    user.mfa_backup_codes = []
+    user.save()
+    return Response({'message': 'MFA disabled successfully'})
 
 # Helper functions
 def send_verification_email(user):

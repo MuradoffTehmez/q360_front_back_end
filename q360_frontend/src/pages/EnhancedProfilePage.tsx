@@ -6,7 +6,7 @@ import Sidebar from '../components/Sidebar';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { User, Mail, Phone, Building, Calendar, Camera, Save, Key, Globe } from 'lucide-react';
+import { User, ChevronLeft, ChevronRight, Save, Send, HelpCircle, AlertCircle, Shield } from 'lucide-react';
 import { User as UserType } from '../services/AuthService';
 import CircularProgressBar from '../components/dashboard/CircularProgressBar';
 
@@ -23,8 +23,8 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
   const [profileCompleteness] = useState(85); // Mock value
 
   const [formData, setFormData] = useState({
-    firstName: currentUser?.name.split(' ')[0] || '',
-    lastName: currentUser?.name.split(' ')[1] || '',
+    firstName: currentUser?.first_name || '',
+    lastName: currentUser?.last_name || '',
     email: currentUser?.email || '',
     phone: '+994 XX XXX XX XX',
     department: currentUser?.department || '',
@@ -101,8 +101,8 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
   const handleCancel = () => {
     // Reset form to original values
     setFormData({
-      firstName: currentUser?.name.split(' ')[0] || '',
-      lastName: currentUser?.name.split(' ')[1] || '',
+      firstName: currentUser?.first_name || '',
+      lastName: currentUser?.last_name || '',
       email: currentUser?.email || '',
       phone: '+994 XX XXX XX XX',
       department: currentUser?.department || '',
@@ -180,7 +180,7 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                             cursor: 'pointer'
                           }}
                         >
-                          <Camera size={16} />
+                          <User size={16} />
                         </button>
                       )}
                     </div>
@@ -517,6 +517,39 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                           {formData.language}
                         </p>
                       )}
+                    </div>
+                    
+                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: 'var(--spacing-xs)',
+                        fontWeight: 500
+                      }}>
+                        İki Faktorlu Autentifikasiya
+                      </label>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        padding: 'var(--spacing-md)',
+                        backgroundColor: 'var(--surface-color)',
+                        borderRadius: 'var(--border-radius-medium)',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                          <Shield size={16} style={{ color: 'var(--secondary-text-color)' }} />
+                          <span>
+                            {currentUser?.mfa_enabled ? 'Aktiv' : 'Deaktiv'}
+                          </span>
+                        </div>
+                        <Button 
+                          variant="secondary" 
+                          size="small"
+                          onClick={() => navigate('/mfa')}
+                        >
+                          {currentUser?.mfa_enabled ? 'Dəyiş' : 'Aktiv et'}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   

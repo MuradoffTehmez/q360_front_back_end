@@ -8,6 +8,7 @@ export interface User {
   role: 'admin' | 'manager' | 'employee';
   department?: string;
   email_verified: boolean;
+  mfa_enabled: boolean;
 }
 
 const API_BASE_URL = 'http://localhost:8000/api/auth';
@@ -25,6 +26,13 @@ export class AuthService {
 
       if (response.ok) {
         const data = await response.json();
+        
+        // Check if MFA is required
+        if (data.mfa_required) {
+          // Return MFA required indicator
+          return { mfaRequired: true, userId: data.user_id } as any;
+        }
+        
         const user = data.user;
         // Save tokens and user to localStorage
         localStorage.setItem('access_token', data.access);
@@ -168,6 +176,98 @@ export class AuthService {
       }
     } catch (error) {
       console.error('Email verification error:', error);
+      throw error;
+    }
+  }
+
+  static async setupMFA(): Promise<{secret: string, backupCodes: string[], qrCodeUrl: string}> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mfa/setup/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getAccessToken()}`
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'MFA setup failed');
+      }
+    } catch (error) {
+      console.error('MFA setup error:', error);
+      throw error;
+    }
+  }
+
+  static async enableMFA(token: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mfa/enable/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getAccessToken()}`
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'MFA enable failed');
+      }
+    } catch (error) {
+      console.error('MFA enable error:', error);
+      throw error;
+    }
+  }
+
+  static async disableMFA(): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mfa/disable/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getAccessToken()}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'MFA disable failed');
+      }
+    } catch (error) {
+      console.error('MFA disable error:', error);
+      throw error;
+    }
+  }
+
+  static async verifyMFA(userId: number, token: string, backupCode?: string): Promise<{user: User, access: string, refresh: string}> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mfa/verify/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId, token, backup_code: backupCode }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const user = data.user;
+        // Save tokens and user to localStorage
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        return {user, access: data.access, refresh: data.refresh};
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'MFA verification failed');
+      }
+    } catch (error) {
+      console.error('MFA verification error:', error);
       throw error;
     }
   }
