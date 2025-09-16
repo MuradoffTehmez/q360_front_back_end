@@ -1,15 +1,16 @@
 // RegistrationPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../contexts/AuthContext';
 import { Sun, Moon, User, Mail, Lock, Building, Phone } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
-import { AuthService } from '../services/AuthService';
 
 const RegistrationPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstName: '',
@@ -119,12 +120,10 @@ const RegistrationPage: React.FC = () => {
           phone: formData.phone,
         };
         
-        const result = await AuthService.register(registrationData);
+        await register(registrationData);
         
-        if (result) {
-          // Successful registration
-          setIsSuccess(true);
-        }
+        // Successful registration
+        setIsSuccess(true);
       } catch (error: any) {
         // Failed registration
         setErrors({
@@ -547,19 +546,7 @@ const RegistrationPage: React.FC = () => {
             zIndex: 1
           }}>
             <p className="text-secondary" style={{ margin: 0 }}>
-              Artıq hesabınız var?{' '}
-              <button
-                onClick={() => navigate('/login')}
-                style={{ 
-                  color: 'var(--primary-color)', 
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: 500
-                }}
-              >
-                Daxil olun
-              </button>
+              Artıq hesabınız var? <Link to="/login" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>Daxil olun</Link>
             </p>
           </div>
         </form>

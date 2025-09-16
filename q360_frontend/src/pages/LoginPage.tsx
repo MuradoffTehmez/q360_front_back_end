@@ -1,15 +1,16 @@
 // LoginPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../contexts/AuthContext';
 import { Sun, Moon, Mail, Lock } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
-import { AuthService, User } from '../services/AuthService';
 
 const LoginPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('cavid@q360.az');
   const [password, setPassword] = useState('demo123');
@@ -52,18 +53,9 @@ const LoginPage: React.FC = () => {
       setErrors(prev => ({ ...prev, general: '' }));
       
       try {
-        const result: any = await AuthService.login(email, password);
-        
-        if (result) {
-          // Check if MFA is required
-          if (result.mfaRequired) {
-            // Navigate to MFA verification page with user ID
-            navigate('/mfa-verify', { state: { userId: result.userId } });
-          } else {
-            // Successful login
-            navigate('/dashboard');
-          }
-        }
+        await login(email, password);
+        // If login is successful, the AuthContext will handle navigation
+        navigate('/dashboard');
       } catch (error: any) {
         // Failed login
         setErrors({
@@ -252,8 +244,8 @@ const LoginPage: React.FC = () => {
               </label>
             </div>
             
-            <a 
-              href="/forgot-password" 
+            <Link 
+              to="/forgot-password" 
               style={{ 
                 color: 'var(--primary-color)', 
                 textDecoration: 'none',
@@ -262,7 +254,7 @@ const LoginPage: React.FC = () => {
               }}
             >
               Şifrəni unutdum?
-            </a>
+            </Link>
           </div>
           
           <Button 
@@ -289,7 +281,7 @@ const LoginPage: React.FC = () => {
           zIndex: 1
         }}>
           <p className="text-secondary" style={{ margin: 0 }}>
-            Hesabınız yoxdur? <a href="/register" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>Qeydiyyatdan keçin</a>
+            Hesabınız yoxdur? <Link to="/register" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>Qeydiyyatdan keçin</Link>
           </p>
         </div>
       </Card>

@@ -39,6 +39,9 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [performanceData, setPerformanceData] = useState<Array<{month: string, score: number}>>([]);
+  const [radarData, setRadarData] = useState<Array<{subject: string, A: number, fullMark: number}>>([]);
+  const [tasks, setTasks] = useState<Array<{id: number, title: string, dueDate: string, priority: 'high' | 'medium' | 'low', completed: boolean}>>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -68,6 +71,33 @@ const Dashboard: React.FC = () => {
         setError(null);
         const data = await DashboardService.getDashboardData();
         setDashboardData(data);
+        
+        // For now, we'll keep the mock data for charts and tasks
+        // In a real app, these would come from the API as well
+        setPerformanceData([
+          { month: 'Yan', score: 75 },
+          { month: 'Fev', score: 80 },
+          { month: 'Mar', score: 78 },
+          { month: 'Apr', score: 82 },
+          { month: 'May', score: 85 },
+          { month: 'İyn', score: 87 },
+        ]);
+        
+        setRadarData([
+          { subject: 'Əməkdaşlıq', A: 120, fullMark: 150 },
+          { subject: 'İnisiativlik', A: 110, fullMark: 150 },
+          { subject: 'İnkişaf', A: 130, fullMark: 150 },
+          { subject: 'Təsirlilik', A: 100, fullMark: 150 },
+          { subject: 'Problemin Həlli', A: 90, fullMark: 150 },
+          { subject: 'İdarəetmə', A: 85, fullMark: 150 },
+        ]);
+        
+        setTasks([
+          { id: 1, title: 'İşçilərin qiymətləndirilməsi', dueDate: '2023-10-20', priority: 'high', completed: false },
+          { id: 2, title: 'Performans hesabatı təqdimatı', dueDate: '2023-10-22', priority: 'medium', completed: false },
+          { id: 3, title: 'Komanda görüşü hazırlığı', dueDate: '2023-10-25', priority: 'low', completed: true },
+          { id: 4, title: 'İdeya bankına baxış', dueDate: '2023-10-28', priority: 'medium', completed: false },
+        ]);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard data');
         console.error('Error fetching dashboard data:', err);
@@ -204,34 +234,6 @@ const Dashboard: React.FC = () => {
       ];
     }
   };
-
-  // Mock performance data - in a real app, this would come from the API
-  const performanceData = [
-    { month: 'Yan', score: 75 },
-    { month: 'Fev', score: 80 },
-    { month: 'Mar', score: 78 },
-    { month: 'Apr', score: 82 },
-    { month: 'May', score: 85 },
-    { month: 'İyn', score: 87 },
-  ];
-
-  // Mock radar chart data - in a real app, this would come from the API
-  const radarData = [
-    { subject: 'Əməkdaşlıq', A: 120, fullMark: 150 },
-    { subject: 'İnisiativlik', A: 110, fullMark: 150 },
-    { subject: 'İnkişaf', A: 130, fullMark: 150 },
-    { subject: 'Təsirlilik', A: 100, fullMark: 150 },
-    { subject: 'Problemin Həlli', A: 90, fullMark: 150 },
-    { subject: 'İdarəetmə', A: 85, fullMark: 150 },
-  ];
-
-  // Mock tasks data - in a real app, this would come from the API
-  const tasks = [
-    { id: 1, title: 'İşçilərin qiymətləndirilməsi', dueDate: '2023-10-20', priority: 'high' as const, completed: false },
-    { id: 2, title: 'Performans hesabatı təqdimatı', dueDate: '2023-10-22', priority: 'medium' as const, completed: false },
-    { id: 3, title: 'Komanda görüşü hazırlığı', dueDate: '2023-10-25', priority: 'low' as const, completed: true },
-    { id: 4, title: 'İdeya bankına baxış', dueDate: '2023-10-28', priority: 'medium' as const, completed: false },
-  ];
 
   const dashboardCards = getDashboardCards();
 
@@ -430,7 +432,11 @@ const Dashboard: React.FC = () => {
                 <Bell size={20} />
                 Son Fəaliyyətlər
               </h3>
-              <ActivityFeed activities={dashboardData?.recent_activities || []} />
+              <ActivityFeed activities={(dashboardData?.recent_activities || []).map((activity, index) => ({
+                ...activity,
+                id: activity.id || index + 1,
+                type: activity.type || 'info'
+              }))} />
             </Card>
           </div>
           

@@ -14,17 +14,25 @@ export interface User {
 }
 
 const API_BASE_URL = 'http://localhost:8000/api/auth';
+const TOKEN_BASE_URL = 'http://localhost:8000/api';
 
-// Create axios instance with default config
-const apiClient = axios.create({
+// Create axios instances with default configs
+const authApiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add interceptor to include auth token in requests
-apiClient.interceptors.request.use(
+const tokenApiClient = axios.create({
+  baseURL: TOKEN_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add interceptor to include auth token in requests for auth API
+authApiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     if (token) {
@@ -38,7 +46,7 @@ apiClient.interceptors.request.use(
 );
 
 // Add interceptor to handle token refresh
-apiClient.interceptors.response.use(
+authApiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
@@ -50,7 +58,7 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
+          const response = await tokenApiClient.post('/token/refresh/', {
             refresh: refreshToken
           });
           
@@ -58,7 +66,7 @@ apiClient.interceptors.response.use(
           localStorage.setItem('access_token', access);
           originalRequest.headers.Authorization = `Bearer ${access}`;
           
-          return apiClient(originalRequest);
+          return authApiClient(originalRequest);
         }
       } catch (refreshError) {
         // If refresh fails, logout user
@@ -73,7 +81,7 @@ apiClient.interceptors.response.use(
 export class AuthService {
   static async login(email: string, password: string): Promise<{user: User, access: string, refresh: string} | null> {
     try {
-      const response = await apiClient.post('/login/', { 
+      const response = await authApiClient.post('/login/', { 
         username: email, 
         password 
       });
@@ -96,13 +104,13 @@ export class AuthService {
       return { user, access, refresh };
     } catch (error: any) {
       console.error('Login error:', error);
-      throw new Error(error.response?.data?.detail || error.message || 'Login failed');
+      throw new Error(error.response?.data?.detail || error.response?.data?.non_field_errors?.[0] || error.message || 'Login failed');
     }
   }
 
   static async register(userData: any): Promise<{user: User, access: string, refresh: string} | null> {
     try {
-      const response = await apiClient.post('/register/', userData);
+      const response = await authApiClient.post('/register/', userData);
       
       const { user, access, refresh } = response.data;
       
@@ -114,7 +122,23 @@ export class AuthService {
       return { user, access, refresh };
     } catch (error: any) {
       console.error('Registration error:', error);
-      throw new Error(error.response?.data?.detail || error.message || 'Registration failed');
+      const errorData = error.response?.data;
+      let errorMessage = 'Registration failed';
+      
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (typeof errorData === 'object') {
+          // Handle field-specific errors
+          const fieldErrors = Object.entries(errorData);
+          if (fieldErrors.length > 0) {
+            const [field, messages] = fieldErrors[0];
+            errorMessage = `${field}: ${Array.isArray(messages) ? messages[0] : messages}`;
+          }
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -122,7 +146,7 @@ export class AuthService {
     try {
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
-        await apiClient.post('/logout/', { refresh: refreshToken });
+        await authApiClient.post('/logout/', { refresh: refreshToken });
       }
     } catch (error) {
       console.error('Logout error:', error);
@@ -153,7 +177,7 @@ export class AuthService {
 
   static async passwordResetRequest(email: string): Promise<void> {
     try {
-      await apiClient.post('/password-reset/request/', { email });
+      await authApiClient.post('/password-reset/request/', { email });
     } catch (error: any) {
       console.error('Password reset request error:', error);
       throw new Error(error.response?.data?.detail || error.message || 'Password reset request failed');
@@ -162,7 +186,7 @@ export class AuthService {
 
   static async passwordResetConfirm(token: string, newPassword: string): Promise<void> {
     try {
-      await apiClient.post('/password-reset/confirm/', { 
+      await authApiClient.post('/password-reset/confirm/', { 
         token, 
         new_password: newPassword,
         new_password_confirm: newPassword
@@ -175,7 +199,7 @@ export class AuthService {
 
   static async verifyEmail(token: string): Promise<void> {
     try {
-      await apiClient.post('/verify-email/', { token });
+      await authApiClient.post('/verify-email/', { token });
     } catch (error: any) {
       console.error('Email verification error:', error);
       throw new Error(error.response?.data?.detail || error.message || 'Email verification failed');
@@ -184,7 +208,7 @@ export class AuthService {
 
   static async setupMFA(): Promise<{secret: string, backupCodes: string[], qrCodeUrl: string}> {
     try {
-      const response = await apiClient.post('/mfa/setup/');
+      const response = await authApiClient.post('/mfa/setup/');
       return response.data;
     } catch (error: any) {
       console.error('MFA setup error:', error);
@@ -194,7 +218,7 @@ export class AuthService {
 
   static async enableMFA(token: string): Promise<void> {
     try {
-      await apiClient.post('/mfa/enable/', { token });
+      await authApiClient.post('/mfa/enable/', { token });
     } catch (error: any) {
       console.error('MFA enable error:', error);
       throw new Error(error.response?.data?.detail || error.message || 'MFA enable failed');
@@ -203,7 +227,7 @@ export class AuthService {
 
   static async disableMFA(): Promise<void> {
     try {
-      await apiClient.post('/mfa/disable/');
+      await authApiClient.post('/mfa/disable/');
     } catch (error: any) {
       console.error('MFA disable error:', error);
       throw new Error(error.response?.data?.detail || error.message || 'MFA disable failed');
@@ -212,7 +236,7 @@ export class AuthService {
 
   static async verifyMFA(userId: number, token: string, backupCode?: string): Promise<{user: User, access: string, refresh: string}> {
     try {
-      const response = await apiClient.post('/mfa/verify/', { 
+      const response = await authApiClient.post('/mfa/verify/', { 
         user_id: userId, 
         token, 
         backup_code: backupCode 
@@ -235,7 +259,7 @@ export class AuthService {
   // New method to fetch current user data from backend
   static async fetchCurrentUser(): Promise<User | null> {
     try {
-      const response = await apiClient.get('/me/');
+      const response = await authApiClient.get('/me/');
       const user = response.data;
       
       // Update user in localStorage

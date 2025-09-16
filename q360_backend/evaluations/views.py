@@ -48,10 +48,63 @@ class EvaluationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def submit(self, request, pk=None):
+        """Submit the evaluation"""
         evaluation = self.get_object()
         evaluation.is_submitted = True
         evaluation.save()
         return Response({'status': 'Evaluation submitted successfully'})
+
+    @action(detail=True, methods=['post'])
+    def save_draft(self, request, pk=None):
+        """Save evaluation as draft with answers"""
+        evaluation = self.get_object()
+        answers_data = request.data.get('answers', [])
+        
+        # Save each answer
+        for answer_data in answers_data:
+            question_id = answer_data.get('question')
+            rating = answer_data.get('rating')
+            comment = answer_data.get('comment', '')
+            
+            if question_id and rating:
+                # Get or create the answer
+                answer, created = Answer.objects.get_or_create(
+                    evaluation=evaluation,
+                    question_id=question_id,
+                    defaults={
+                        'rating': rating,
+                        'comment': comment
+                    }
+                )
+                # If answer already exists, update it
+                if not created:
+                    answer.rating = rating
+                    answer.comment = comment
+                    answer.save()
+        
+        # Update evaluation to indicate it has draft data
+        evaluation.save()
+        
+        return Response({
+            'status': 'Draft saved successfully',
+            'evaluation': EvaluationSerializer(evaluation).data
+        })
+
+    @action(detail=True, methods=['get'])
+    def get_questions(self, request, pk=None):
+        """Get all questions for this evaluation's cycle"""
+        evaluation = self.get_object()
+        questions = Question.objects.filter(competency__department=evaluation.evaluatee.department)
+        serializer = QuestionSerializer(questions, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def get_answers(self, request, pk=None):
+        """Get all answers for this evaluation"""
+        evaluation = self.get_object()
+        answers = evaluation.answers.all()
+        serializer = AnswerSerializer(answers, many=True)
+        return Response(serializer.data)
 
 class AnswerViewSet(viewsets.ModelViewSet):
     queryset = Answer.objects.all()
