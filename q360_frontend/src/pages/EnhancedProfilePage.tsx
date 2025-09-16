@@ -1,38 +1,37 @@
 // EnhancedProfilePage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { User, ChevronLeft, ChevronRight, Save, Send, HelpCircle, AlertCircle, Shield } from 'lucide-react';
-import { User as UserType } from '../services/AuthService';
+import { User, ChevronLeft, ChevronRight, Save, Send, HelpCircle, AlertCircle, Shield, Mail, Phone, Building, Calendar, Key, Globe } from 'lucide-react';
+import { UserService, UpdateUserData } from '../services/userService';
 import CircularProgressBar from '../components/dashboard/CircularProgressBar';
 
-interface EnhancedProfilePageProps {
-  onLogout: () => void;
-  currentUser: UserType | null;
-}
-
-const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, currentUser }) => {
+const EnhancedProfilePage: React.FC = () => {
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [profileCompleteness] = useState(85); // Mock value
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [profileCompleteness] = useState(85); // This would be calculated based on filled fields in a real app
 
   const [formData, setFormData] = useState({
-    firstName: currentUser?.first_name || '',
-    lastName: currentUser?.last_name || '',
-    email: currentUser?.email || '',
-    phone: '+994 XX XXX XX XX',
-    department: currentUser?.department || '',
-    position: 'Frontend Developer',
-    hireDate: '2022-03-15',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    department: '',
+    position: '',
+    hireDate: '',
     timezone: 'Asia/Baku',
     language: 'Azərbaycan dili',
-    bio: 'Təcrübəli frontend developer. React, TypeScript və modern veb texnologiyalar üzrə ixtisaslaşmışam.'
+    bio: ''
   });
 
   const [errors, setErrors] = useState({
@@ -46,6 +45,44 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
     setActivePage(page);
     navigate(`/${page}`);
   };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const userData = await UserService.getCurrentUser();
+        
+        setFormData({
+          firstName: userData.first_name || '',
+          lastName: userData.last_name || '',
+          email: userData.email || '',
+          phone: userData.phone || '',
+          department: userData.department || '',
+          position: userData.position || '',
+          hireDate: userData.hire_date || '',
+          timezone: 'Asia/Baku',
+          language: 'Azərbaycan dili',
+          bio: ''
+        });
+      } catch (err: any) {
+        setError(err.message || 'Failed to load profile data');
+        console.error('Error fetching user data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
 
   const validateForm = () => {
     let isValid = true;
@@ -86,42 +123,140 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (validateForm()) {
       setIsSaving(true);
-      // Simulate save operation
-      setTimeout(() => {
-        setIsSaving(false);
+      try {
+        // Prepare data for update
+        const updateData: UpdateUserData = {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          department: formData.department,
+          position: formData.position,
+          hire_date: formData.hireDate,
+          bio: formData.bio
+        };
+
+        // Remove empty fields
+        Object.keys(updateData).forEach(key => {
+          if (updateData[key as keyof UpdateUserData] === '') {
+            delete updateData[key as keyof UpdateUserData];
+          }
+        });
+
+        // Update user data
+        await UserService.updateUser(updateData);
+        
+        // Refresh user data in context
+        await refreshUser();
+        
         setIsEditing(false);
         alert("Profil məlumatları uğurla yeniləndi!");
-      }, 1000);
+      } catch (err: any) {
+        alert("Yeniləmə zamanı xəta baş verdi: " + err.message);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
   const handleCancel = () => {
     // Reset form to original values
     setFormData({
-      firstName: currentUser?.first_name || '',
-      lastName: currentUser?.last_name || '',
-      email: currentUser?.email || '',
-      phone: '+994 XX XXX XX XX',
-      department: currentUser?.department || '',
-      position: 'Frontend Developer',
-      hireDate: '2022-03-15',
+      firstName: user?.first_name || '',
+      lastName: user?.last_name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      department: user?.department || '',
+      position: user?.position || '',
+      hireDate: user?.hire_date || '',
       timezone: 'Asia/Baku',
       language: 'Azərbaycan dili',
-      bio: 'Təcrübəli frontend developer. React, TypeScript və modern veb texnologiyalar üzrə ixtisaslaşmışam.'
+      bio: ''
     });
     setIsEditing(false);
   };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="Profil" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div className="loading-spinner" style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid rgba(0, 123, 255, 0.2)',
+              borderTop: '4px solid var(--primary-color)',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="Profil" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Card style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto var(--spacing-lg) auto',
+                color: 'var(--error-color)'
+              }}>
+                <AlertCircle size={32} />
+              </div>
+              <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>Səhv baş verdi</h3>
+              <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
+                {error}
+              </p>
+              <Button 
+                variant="primary" 
+                onClick={() => window.location.reload()}
+              >
+                Yenidən cəhd et
+              </Button>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar 
         activePage={activePage} 
         onNavigate={handleNavigate} 
-        onLogout={onLogout} 
-        currentUser={currentUser}
+        onLogout={handleLogout} 
+        currentUser={user}
       />
       
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
@@ -324,17 +459,13 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                             errorMessage={errors.phone}
                           />
                         ) : (
-                          <p style={{ margin: 0 }}>{formData.phone}</p>
+                          <p style={{ margin: 0 }}>{formData.phone || 'Əlavə edilməyib'}</p>
                         )}
                       </div>
                     </div>
-                  </div>
-                  
-                  <div>
-                    <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>İş məlumatları</h3>
                     
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                      <label style={{ 
+                      <label htmlFor="department" style={{ 
                         display: 'block', 
                         marginBottom: 'var(--spacing-xs)',
                         fontWeight: 500
@@ -351,13 +482,17 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                             onChange={handleChange}
                           />
                         ) : (
-                          <p style={{ margin: 0 }}>{formData.department}</p>
+                          <p style={{ margin: 0 }}>{formData.department || 'Əlavə edilməyib'}</p>
                         )}
                       </div>
                     </div>
+                  </div>
+                  
+                  <div>
+                    <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>İş məlumatları</h3>
                     
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                      <label style={{ 
+                      <label htmlFor="position" style={{ 
                         display: 'block', 
                         marginBottom: 'var(--spacing-xs)',
                         fontWeight: 500
@@ -372,12 +507,12 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                           onChange={handleChange}
                         />
                       ) : (
-                        <p style={{ margin: 0 }}>{formData.position}</p>
+                        <p style={{ margin: 0 }}>{formData.position || 'Əlavə edilməyib'}</p>
                       )}
                     </div>
                     
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                      <label style={{ 
+                      <label htmlFor="hireDate" style={{ 
                         display: 'block', 
                         marginBottom: 'var(--spacing-xs)',
                         fontWeight: 500
@@ -395,56 +530,12 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                           />
                         ) : (
                           <p style={{ margin: 0 }}>
-                            {new Date(formData.hireDate).toLocaleDateString('az-AZ')}
+                            {formData.hireDate ? new Date(formData.hireDate).toLocaleDateString() : 'Əlavə edilməyib'}
                           </p>
                         )}
                       </div>
                     </div>
                     
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                      <label htmlFor="bio" style={{ 
-                        display: 'block', 
-                        marginBottom: 'var(--spacing-xs)',
-                        fontWeight: 500
-                      }}>
-                        Bioqrafiya
-                      </label>
-                      {isEditing ? (
-                        <textarea
-                          id="bio"
-                          value={formData.bio}
-                          onChange={handleChange}
-                          placeholder="Özünüz barədə qısa məlumat..."
-                          style={{
-                            width: '100%',
-                            minHeight: '100px',
-                            padding: 'var(--spacing-md)',
-                            borderRadius: 'var(--border-radius-medium)',
-                            border: '1px solid var(--border-color)',
-                            backgroundColor: 'var(--surface-color)',
-                            color: 'var(--primary-text-color)',
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 'var(--font-size-base)',
-                            resize: 'vertical'
-                          }}
-                        />
-                      ) : (
-                        <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{formData.bio}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-              
-              <Card>
-                <h3 style={{ margin: '0 0 var(--spacing-lg) 0' }}>Tənzimləmələr</h3>
-                
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1fr 1fr', 
-                  gap: 'var(--spacing-lg)' 
-                }}>
-                  <div>
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
                       <label htmlFor="timezone" style={{ 
                         display: 'block', 
@@ -453,30 +544,37 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                       }}>
                         Saat qurşağı
                       </label>
-                      {isEditing ? (
-                        <select
-                          id="timezone"
-                          value={formData.timezone}
-                          onChange={handleChange}
-                          style={{
-                            width: '100%',
-                            padding: 'var(--spacing-sm) var(--spacing-md)',
-                            borderRadius: 'var(--border-radius-medium)',
-                            border: '1px solid var(--border-color)',
-                            backgroundColor: 'var(--surface-color)',
-                            color: 'var(--primary-text-color)',
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 'var(--font-size-base)'
-                          }}
-                        >
-                          <option value="Asia/Baku">Asia/Baku (GMT+4)</option>
-                          <option value="Europe/London">Europe/London (GMT+0)</option>
-                          <option value="America/New_York">America/New_York (GMT-5)</option>
-                          <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
-                        </select>
-                      ) : (
-                        <p style={{ margin: 0 }}>{formData.timezone}</p>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                        <Globe size={16} style={{ 
+                          color: 'var(--secondary-text-color)', 
+                          marginRight: 'var(--spacing-sm)',
+                          verticalAlign: 'middle'
+                        }} />
+                        {isEditing ? (
+                          <select
+                            id="timezone"
+                            value={formData.timezone}
+                            onChange={handleChange}
+                            style={{
+                              width: '100%',
+                              padding: 'var(--spacing-sm)',
+                              borderRadius: 'var(--border-radius-medium)',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--surface-color)',
+                              color: 'var(--primary-text-color)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 'var(--font-size-base)'
+                            }}
+                          >
+                            <option value="Asia/Baku">Asia/Baku (UTC+4)</option>
+                            <option value="Europe/London">Europe/London (UTC+0)</option>
+                            <option value="America/New_York">America/New_York (UTC-5)</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+                          </select>
+                        ) : (
+                          <p style={{ margin: 0 }}>{formData.timezone}</p>
+                        )}
+                      </div>
                     </div>
                     
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
@@ -494,7 +592,7 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                           onChange={handleChange}
                           style={{
                             width: '100%',
-                            padding: 'var(--spacing-sm) var(--spacing-md)',
+                            padding: 'var(--spacing-sm)',
                             borderRadius: 'var(--border-radius-medium)',
                             border: '1px solid var(--border-color)',
                             backgroundColor: 'var(--surface-color)',
@@ -508,125 +606,174 @@ const EnhancedProfilePage: React.FC<EnhancedProfilePageProps> = ({ onLogout, cur
                           <option value="Русский">Русский</option>
                         </select>
                       ) : (
-                        <p style={{ margin: 0 }}>
-                          <Globe size={16} style={{ 
-                            color: 'var(--secondary-text-color)', 
-                            marginRight: 'var(--spacing-sm)',
-                            verticalAlign: 'middle'
-                          }} />
-                          {formData.language}
-                        </p>
+                        <p style={{ margin: 0 }}>{formData.language}</p>
                       )}
                     </div>
-                    
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: 'var(--spacing-xs)',
-                        fontWeight: 500
-                      }}>
-                        İki Faktorlu Autentifikasiya
-                      </label>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>Bioqrafiya</h3>
+                  {isEditing ? (
+                    <textarea
+                      id="bio"
+                      value={formData.bio}
+                      onChange={handleChange}
+                      placeholder="Özünüz haqqında qısa məlumat əlavə edin..."
+                      style={{
+                        width: '100%',
+                        minHeight: '120px',
                         padding: 'var(--spacing-md)',
-                        backgroundColor: 'var(--surface-color)',
                         borderRadius: 'var(--border-radius-medium)',
-                        border: '1px solid var(--border-color)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                          <Shield size={16} style={{ color: 'var(--secondary-text-color)' }} />
-                          <span>
-                            {currentUser?.mfa_enabled ? 'Aktiv' : 'Deaktiv'}
-                          </span>
-                        </div>
-                        <Button 
-                          variant="secondary" 
-                          size="small"
-                          onClick={() => navigate('/mfa')}
-                        >
-                          {currentUser?.mfa_enabled ? 'Dəyiş' : 'Aktiv et'}
-                        </Button>
-                      </div>
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--surface-color)',
+                        color: 'var(--primary-text-color)',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--font-size-base)',
+                        resize: 'vertical'
+                      }}
+                    />
+                  ) : (
+                    <p style={{ margin: 0 }}>
+                      {formData.bio || 'Bioqrafiya əlavə edilməyib'}
+                    </p>
+                  )}
+                </div>
+              </Card>
+              
+              <Card>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: 'var(--spacing-lg)'
+                }}>
+                  <h3 style={{ margin: 0 }}>Təhlükəsizlik</h3>
+                  <Shield size={20} style={{ color: 'var(--secondary-text-color)' }} />
+                </div>
+                
+                <div style={{ 
+                  padding: 'var(--spacing-lg)', 
+                  backgroundColor: 'rgba(0, 123, 255, 0.05)',
+                  borderRadius: 'var(--border-radius-medium)',
+                  border: '1px solid rgba(0, 123, 255, 0.1)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                    <div style={{ 
+                      width: '40px', 
+                      height: '40px', 
+                      borderRadius: '50%', 
+                      backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--primary-color)'
+                    }}>
+                      <Key size={20} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: '0 0 var(--spacing-xs) 0' }}>Şifrə dəyişdir</h4>
+                      <p className="text-secondary" style={{ margin: 0, fontSize: 'var(--font-size-small)' }}>
+                        Hesabınızın təhlükəsizliyi üçün şifrənizi dəyişdirin
+                      </p>
                     </div>
                   </div>
-                  
-                  <div>
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: 'var(--spacing-xs)',
-                        fontWeight: 500
-                      }}>
-                        Şifrəni dəyiş
-                      </label>
-                      <Button 
-                        variant="secondary" 
-                        style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}
-                        onClick={() => navigate('/reset-password')}
-                      >
-                        <Key size={16} />
-                        Yeni şifrə təyin et
-                      </Button>
-                    </div>
-                  </div>
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => navigate('/reset-password')}
+                    style={{ 
+                      marginTop: 'var(--spacing-md)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 'var(--spacing-sm)' 
+                    }}
+                  >
+                    <Key size={16} />
+                    Yeni şifrə təyin et
+                  </Button>
                 </div>
               </Card>
             </div>
             
             <div>
-              <Card style={{ textAlign: 'center', marginBottom: 'var(--spacing-lg)' }}>
+              <Card style={{ textAlign: 'center' }}>
                 <h3 style={{ margin: '0 0 var(--spacing-lg) 0' }}>Profil Tamamlığı</h3>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px' }}>
                   <CircularProgressBar percentage={profileCompleteness} size={120} />
                 </div>
-                <p className="text-secondary" style={{ margin: 0 }}>
-                  Profiliniz {profileCompleteness}% tamamlanıb. 
-                  Daha çox məlumat əlavə edərək profilinizi tamamlayın.
+                <p className="text-secondary" style={{ margin: 'var(--spacing-md) 0 0 0' }}>
+                  Profilinizin {profileCompleteness}%-i tamamlanıb
                 </p>
+                <Button 
+                  variant="primary" 
+                  onClick={() => setIsEditing(true)}
+                  style={{ marginTop: 'var(--spacing-md)' }}
+                >
+                  Tamamla
+                </Button>
               </Card>
               
-              <Card>
-                <h3 style={{ margin: '0 0 var(--spacing-lg) 0' }}>Ən son fəaliyyət</h3>
+              <Card style={{ marginTop: 'var(--spacing-lg)' }}>
+                <h3 style={{ margin: '0 0 var(--spacing-lg) 0' }}>Əlaqə məlumatları</h3>
                 <div style={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
                   gap: 'var(--spacing-md)' 
                 }}>
                   <div style={{ 
-                    padding: 'var(--spacing-sm) 0',
-                    borderBottom: '1px solid var(--border-color)'
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 'var(--spacing-md)',
+                    padding: 'var(--spacing-sm)',
+                    borderRadius: 'var(--border-radius-medium)'
                   }}>
-                    <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: 500 }}>
-                      Qiymətləndirmə forması tamamlandı
-                    </p>
-                    <p className="text-secondary text-small" style={{ margin: 0 }}>
-                      2 saat əvvəl
-                    </p>
+                    <div style={{ 
+                      width: '36px', 
+                      height: '36px', 
+                      borderRadius: '50%', 
+                      backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--primary-color)'
+                    }}>
+                      <Mail size={16} />
+                    </div>
+                    <div>
+                      <p className="text-secondary" style={{ margin: 0, fontSize: 'var(--font-size-small)' }}>
+                        Email
+                      </p>
+                      <p style={{ margin: 'var(--spacing-xs) 0 0 0' }}>{formData.email}</p>
+                    </div>
                   </div>
+                  
                   <div style={{ 
-                    padding: 'var(--spacing-sm) 0',
-                    borderBottom: '1px solid var(--border-color)'
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 'var(--spacing-md)',
+                    padding: 'var(--spacing-sm)',
+                    borderRadius: 'var(--border-radius-medium)'
                   }}>
-                    <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: 500 }}>
-                      Profil məlumatları yeniləndi
-                    </p>
-                    <p className="text-secondary text-small" style={{ margin: 0 }}>
-                      1 gün əvvəl
-                    </p>
-                  </div>
-                  <div style={{ 
-                    padding: 'var(--spacing-sm) 0',
-                    borderBottom: '1px solid var(--border-color)'
-                  }}>
-                    <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: 500 }}>
-                      Yeni ideya təqdim etdi
-                    </p>
-                    <p className="text-secondary text-small" style={{ margin: 0 }}>
-                      3 gün əvvəl
-                    </p>
+                    <div style={{ 
+                      width: '36px', 
+                      height: '36px', 
+                      borderRadius: '50%', 
+                      backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--success-color)'
+                    }}>
+                      <Phone size={16} />
+                    </div>
+                    <div>
+                      <p className="text-secondary" style={{ margin: 0, fontSize: 'var(--font-size-small)' }}>
+                        Telefon
+                      </p>
+                      <p style={{ margin: 'var(--spacing-xs) 0 0 0' }}>
+                        {formData.phone || 'Əlavə edilməyib'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </Card>

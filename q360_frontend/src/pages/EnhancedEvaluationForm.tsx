@@ -1,120 +1,154 @@
 // EnhancedEvaluationForm.tsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { User, ChevronLeft, ChevronRight, Save, Send, HelpCircle, AlertCircle } from 'lucide-react';
-import { User as UserType } from '../services/AuthService';
+import { EvaluationsService, Evaluation, Question, Answer } from '../services/evaluationsService';
 
-interface EnhancedEvaluationFormProps {
-  onLogout: () => void;
-  currentUser: UserType | null;
-}
-
-const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogout, currentUser }) => {
+const EnhancedEvaluationForm: React.FC = () => {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [activePage, setActivePage] = useState('evaluation');
   const [currentStep, setCurrentStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<Record<number, any>>({});
+  
+  // Refs for auto-save functionality
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasUnsavedChangesRef = useRef(false);
+  const answersRef = useRef<Record<number, any>>({});
 
   const handleNavigate = (page: string) => {
     setActivePage(page);
     navigate(`/${page}`);
   };
 
-  // Mock evaluation data
-  const evaluationData = {
-    title: "İşçinin Performans Qiymətləndirilməsi",
-    subject: "Əliyev Cavid",
-    position: "Frontend Developer",
-    department: "İT Departamenti",
-    period: "01.07.2023 - 30.06.2024"
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
-  // Mock questions
-  const steps = [
-    {
-      title: "Ümumi Performans",
-      questions: [
-        {
-          id: 1,
-          text: "İşçinin layihələrdəki ümumi performansı necədir?",
-          type: "rating",
-          required: true,
-          helpText: "İşçinin layihələrdəki dəqiqliyini, vaxtında yerinə yetirməsini və keyfiyyətini qiymətləndirin."
-        },
-        {
-          id: 2,
-          text: "İşçinin komanda ilə əməkdaşlıq qabiliyyəti necədir?",
-          type: "rating",
-          required: true,
-          helpText: "İşçinin komanda üzvləri ilə necə əməkdaşlıq etdiyini və kommunikasiya bacarıqlarını qiymətləndirin."
-        }
-      ]
-    },
-    {
-      title: "Texniki Bacarıqlar",
-      questions: [
-        {
-          id: 3,
-          text: "İşçinin proqramlaşdırma bacarıqları necədir?",
-          type: "rating",
-          required: true,
-          helpText: "İşçinin istifadə etdiyi texnologiyalarda necə mütəxəssis olduğunu qiymətləndirin."
-        },
-        {
-          id: 4,
-          text: "İşçinin problem həll etmə qabiliyyəti necədir?",
-          type: "rating",
-          required: true,
-          helpText: "İşçinin qarşılaşdığı texniki problemləri necə həll etdiyini qiymətləndirin."
-        }
-      ]
-    },
-    {
-      title: "İdarəetmə və Liderlik",
-      questions: [
-        {
-          id: 5,
-          text: "İşçinin liderlik potensialı varmı?",
-          type: "rating",
-          required: false,
-          helpText: "İşçinin başqalarına təsir etmə qabiliyyətini və liderlik xüsusiyyətlərini qiymətləndirin."
-        },
-        {
-          id: 6,
-          text: "İşçinin inisiativlik göstərməsi necədir?",
-          type: "rating",
-          required: true,
-          helpText: "İşçinin işinə inisiativ yanaşdığını və təkliflər verdiyini qiymətləndirin."
-        }
-      ]
-    },
-    {
-      title: "Əlavə Şərhlər",
-      questions: [
-        {
-          id: 7,
-          text: "İşçinin inkişaf etdirilməsi üçün tövsiyələriniz nələrdir?",
-          type: "text",
-          required: true,
-          helpText: "İşçinin performansını artıra biləcək konkret təkliflər verin."
-        },
-        {
-          id: 8,
-          text: "İşçinin güclü tərəfləri nələrdir?",
-          type: "text",
-          required: false,
-          helpText: "İşçinin ən yaxşı göstərdiyi sahələri qeyd edin."
-        }
-      ]
+  // Auto-save functionality
+  useEffect(() => {
+    // Update refs when answers change
+    answersRef.current = answers;
+    hasUnsavedChangesRef.current = true;
+    
+    // Clear existing timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
     }
-  ];
+    
+    // Set new timer for auto-save (every 30 seconds)
+    if (id && Object.keys(answers).length > 0) {
+      autoSaveTimerRef.current = setTimeout(async () => {
+        if (hasUnsavedChangesRef.current) {
+          try {
+            // Prepare answers data for saving
+            const answersToSave = Object.entries(answersRef.current).map(([questionId, value]) => ({
+              question: parseInt(questionId),
+              rating: typeof value === 'object' ? value.rating : value,
+              comment: typeof value === 'object' ? value.comment : ''
+            }));
+            
+            // Save draft
+            const updatedEvaluation = await EvaluationsService.saveDraft(parseInt(id), answersToSave);
+            setEvaluation(updatedEvaluation);
+            hasUnsavedChangesRef.current = false;
+            console.log("Auto-saved at", new Date().toLocaleTimeString());
+          } catch (err) {
+            console.error("Auto-save failed:", err);
+          }
+        }
+      }, 30000); // 30 seconds
+    }
+    
+    // Cleanup function
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [answers, id]);
 
-  const [answers, setAnswers] = useState<Record<number, any>>({});
+  // Fetch evaluation data
+  useEffect(() => {
+    const fetchEvaluationData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        if (id) {
+          // Fetch evaluation details
+          const evalData = await EvaluationsService.getEvaluation(parseInt(id));
+          setEvaluation(evalData);
+          
+          // Fetch questions for this evaluation
+          const questionsData = await EvaluationsService.getEvaluationQuestions(parseInt(id));
+          setQuestions(questionsData);
+          
+          // Fetch existing answers if any
+          const answersData = await EvaluationsService.getEvaluationAnswers(parseInt(id));
+          const answersMap: Record<number, any> = {};
+          answersData.forEach(answer => {
+            answersMap[answer.question.id] = {
+              rating: answer.rating,
+              comment: answer.comment
+            };
+          });
+          setAnswers(answersMap);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to load evaluation data');
+        console.error('Error fetching evaluation data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id && user) {
+      fetchEvaluationData();
+    }
+  }, [id, user]);
+
+  // Group questions into steps (for demo purposes, we'll group them by competency)
+  const steps = questions.reduce((acc: any[], question: Question) => {
+    const competencyName = question.competency.name;
+    const existingStep = acc.find(step => step.title === competencyName);
+    
+    if (existingStep) {
+      existingStep.questions.push({
+        id: question.id,
+        text: question.text,
+        type: question.text.length > 100 ? 'text' : 'rating',
+        required: true,
+        helpText: `Please rate ${question.text}`
+      });
+    } else {
+      acc.push({
+        title: competencyName,
+        questions: [{
+          id: question.id,
+          text: question.text,
+          type: question.text.length > 100 ? 'text' : 'rating',
+          required: true,
+          helpText: `Please rate ${question.text}`
+        }]
+      });
+    }
+    
+    return acc;
+  }, []);
 
   const handleAnswerChange = (questionId: number, value: any) => {
     setAnswers({
@@ -123,21 +157,43 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!id) return;
+    
     setIsSaving(true);
-    // Simulate save operation
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      // Prepare answers data for saving
+      const answersToSave = Object.entries(answers).map(([questionId, value]) => ({
+        question: parseInt(questionId),
+        rating: typeof value === 'object' ? value.rating : value,
+        comment: typeof value === 'object' ? value.comment : ''
+      }));
+      
+      // Save draft
+      const updatedEvaluation = await EvaluationsService.saveDraft(parseInt(id), answersToSave);
+      setEvaluation(updatedEvaluation);
+      
+      // Reset unsaved changes flag
+      hasUnsavedChangesRef.current = false;
+      
+      // Show success message
       alert("Qiymətləndirmə uğurla yadda saxlanıldı!");
-    }, 1000);
+    } catch (err: any) {
+      alert("Yadda saxlama zamanı xəta baş verdi: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!id) return;
+    
     setIsSubmitting(true);
+    
     // Check if all required questions are answered
-    const currentStepQuestions = steps[currentStep].questions;
-    const requiredQuestions = currentStepQuestions.filter(q => q.required);
-    const unansweredRequired = requiredQuestions.some(q => !answers[q.id]);
+    const currentStepQuestions = steps[currentStep]?.questions || [];
+    const requiredQuestions = currentStepQuestions.filter((q: any) => q.required);
+    const unansweredRequired = requiredQuestions.some((q: any) => !answers[q.id]);
     
     if (unansweredRequired) {
       alert("Zəhmət olmasa bütün tələb olunan sualları cavablandırın!");
@@ -145,19 +201,36 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
       return;
     }
     
-    // Simulate submit operation
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // First save the current answers as draft
+      const answersToSave = Object.entries(answers).map(([questionId, value]) => ({
+        question: parseInt(questionId),
+        rating: typeof value === 'object' ? value.rating : value,
+        comment: typeof value === 'object' ? value.comment : ''
+      }));
+      
+      await EvaluationsService.saveDraft(parseInt(id), answersToSave);
+      
+      // Reset unsaved changes flag
+      hasUnsavedChangesRef.current = false;
+      
+      // Then submit the evaluation
+      await EvaluationsService.submitEvaluation(parseInt(id));
+      
       alert("Qiymətləndirmə uğurla təqdim edildi!");
       navigate('/dashboard');
-    }, 1000);
+    } catch (err: any) {
+      alert("Təqdim etmə zamanı xəta baş verdi: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const nextStep = () => {
     // Check if all required questions are answered
-    const currentStepQuestions = steps[currentStep].questions;
-    const requiredQuestions = currentStepQuestions.filter(q => q.required);
-    const unansweredRequired = requiredQuestions.some(q => !answers[q.id]);
+    const currentStepQuestions = steps[currentStep]?.questions || [];
+    const requiredQuestions = currentStepQuestions.filter((q: any) => q.required);
+    const unansweredRequired = requiredQuestions.some((q: any) => !answers[q.id]);
     
     if (unansweredRequired) {
       alert("Zəhmət olmasa bütün tələb olunan sualları cavablandırın!");
@@ -316,7 +389,7 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
               )}
             </div>
             <textarea
-              value={answers[question.id] || ''}
+              value={answers[question.id]?.comment || answers[question.id] || ''}
               onChange={(e) => handleAnswerChange(question.id, e.target.value)}
               placeholder="Cavabınızı burada yazın..."
               style={{
@@ -339,13 +412,115 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
     }
   };
 
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="Qiymətləndirmə Forması" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div className="loading-spinner" style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid rgba(0, 123, 255, 0.2)',
+              borderTop: '4px solid var(--primary-color)',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="Qiymətləndirmə Forması" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Card style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto var(--spacing-lg) auto',
+                color: 'var(--error-color)'
+              }}>
+                <AlertCircle size={32} />
+              </div>
+              <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>Səhv baş verdi</h3>
+              <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
+                {error}
+              </p>
+              <Button 
+                variant="primary" 
+                onClick={() => window.location.reload()}
+              >
+                Yenidən cəhd et
+              </Button>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (!evaluation || steps.length === 0) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="Qiymətləndirmə Forması" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Card style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+              <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>Qiymətləndirmə tapılmadı</h3>
+              <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
+                Tələb olunan qiymətləndirmə tapılmadı və ya yüklənərkən xəta baş verdi.
+              </p>
+              <Button 
+                variant="primary" 
+                onClick={() => navigate('/dashboard')}
+              >
+                Dashboard-a qayıt
+              </Button>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar 
         activePage={activePage} 
         onNavigate={handleNavigate} 
-        onLogout={onLogout} 
-        currentUser={currentUser}
+        onLogout={handleLogout} 
+        currentUser={user}
       />
       
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
@@ -366,16 +541,16 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
               borderBottom: '1px solid var(--border-color)'
             }}>
               <div>
-                <h2 style={{ margin: '0 0 var(--spacing-sm) 0' }}>{evaluationData.title}</h2>
+                <h2 style={{ margin: '0 0 var(--spacing-sm) 0' }}>{evaluation.cycle.name}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                     <User size={16} style={{ color: 'var(--secondary-text-color)' }} />
-                    <span>{evaluationData.subject}</span>
+                    <span>{evaluation.evaluatee.first_name} {evaluation.evaluatee.last_name}</span>
                   </div>
                   <span className="text-secondary">•</span>
-                  <span>{evaluationData.position}</span>
+                  <span>{evaluation.evaluatee.position}</span>
                   <span className="text-secondary">•</span>
-                  <span>{evaluationData.department}</span>
+                  <span>{evaluation.evaluatee.department}</span>
                 </div>
               </div>
               <div style={{ 
@@ -385,7 +560,7 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
                 color: 'var(--primary-color)',
                 fontWeight: 500
               }}>
-                {evaluationData.period}
+                {new Date(evaluation.cycle.start_date).toLocaleDateString()} - {new Date(evaluation.cycle.end_date).toLocaleDateString()}
               </div>
             </div>
             
@@ -395,7 +570,7 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
               marginBottom: 'var(--spacing-lg)',
               flexWrap: 'wrap'
             }}>
-              {steps.map((step, index) => (
+              {steps.map((step: any, index: number) => (
                 <button
                   key={index}
                   onClick={() => setCurrentStep(index)}
@@ -424,7 +599,7 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
               marginBottom: 'var(--spacing-md)'
             }}>
               <h3 style={{ margin: 0 }}>
-                {steps[currentStep].title}
+                {steps[currentStep]?.title}
               </h3>
               <div style={{ 
                 display: 'flex', 
@@ -444,7 +619,7 @@ const EnhancedEvaluationForm: React.FC<EnhancedEvaluationFormProps> = ({ onLogou
           
           <Card>
             <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-              {steps[currentStep].questions.map((question) => (
+              {steps[currentStep]?.questions.map((question: any) => (
                 <div key={question.id}>
                   {renderQuestion(question)}
                 </div>
