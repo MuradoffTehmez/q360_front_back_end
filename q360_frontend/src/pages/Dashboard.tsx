@@ -1,6 +1,7 @@
 // Dashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import Card from '../components/Card';
@@ -17,9 +18,13 @@ import {
   Award,
   Clock,
   AlertCircle,
-  Menu
+  Menu,
+  Lightbulb,
+  User,
+  Building,
+  TrendingDown
 } from 'lucide-react';
-import { User } from '../services/AuthService';
+import { DashboardService, DashboardData } from '../services/dashboardService';
 import PerformanceChart from '../components/dashboard/PerformanceChart';
 import ActivityFeed from '../components/dashboard/ActivityFeed';
 import TaskList from '../components/dashboard/TaskList';
@@ -27,14 +32,15 @@ import CircularProgressBar from '../components/dashboard/CircularProgressBar';
 import RadarChart from '../components/dashboard/RadarChart';
 import MobileDashboard from './MobileDashboard';
 
-interface DashboardProps {
-  onLogout: () => void;
-  currentUser: User | null;
-}
-
-const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
+const Dashboard: React.FC = () => {
+  const { user, logout } = useAuth();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
+  const [activePage, setActivePage] = useState('dashboard');
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -44,72 +50,42 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  if (isMobile) {
-    return <MobileDashboard onLogout={onLogout} currentUser={currentUser} />;
-  }
-  
-  return <DesktopDashboard onLogout={onLogout} currentUser={currentUser} />;
-};
-
-const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
-  const navigate = useNavigate();
-  const [activePage, setActivePage] = useState('dashboard');
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<any>(null);
-
   const handleNavigate = (page: string) => {
     setActivePage(page);
     navigate(`/${page}`);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   // Fetch dashboard data from API
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Simulate API call
-        // In a real app, this would be:
-        // const response = await fetch('/api/reports/dashboard/');
-        // const data = await response.json();
-        
-        // Mock data for now
-        const mockData = {
-          total_users: 126,
-          total_ideas: 42,
-          total_evaluations: 85,
-          pending_evaluations: 12,
-          recent_activities: [
-            { text: 'Yeni qiymətləndirmə forması tamamlandı', time: '2 saat əvvəl', type: 'success' },
-            { text: 'Performans hesabatı hazırlandı', time: '5 saat əvvəl', type: 'info' },
-            { text: 'Rəhbər panelinə daxil olundu', time: '1 gün əvvəl', type: 'info' },
-            { text: 'Profil məlumatları yeniləndi', time: '2 gün əvvəl', type: 'warning' },
-            { text: 'Yeni qiymətləndirmə dövrü yaradıldı', time: '3 gün əvvəl', type: 'success' },
-          ],
-          team_performance: 85,
-          performance_score: 78,
-          team_members: 12,
-          team_evaluations: 8,
-          pending_team_evaluations: 3,
-          my_evaluations: 5,
-          pending_my_evaluations: 2,
-          my_ideas: 3
-        };
-        
-        setDashboardData(mockData);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        setLoading(true);
+        setError(null);
+        const data = await DashboardService.getDashboardData();
+        setDashboardData(data);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardData();
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   // Dashboard cards based on user role
   const getDashboardCards = () => {
-    if (!dashboardData || !currentUser) return [];
+    if (!dashboardData || !user) return [];
 
-    if (currentUser.role === 'admin') {
+    if (user.role === 'admin') {
       return [
         { 
           title: 'Ümumi İstifadəçilər', 
@@ -148,7 +124,7 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
           trend: 'down'
         },
       ];
-    } else if (currentUser.role === 'manager') {
+    } else if (user.role === 'manager') {
       return [
         { 
           title: 'Komanda Üzvləri', 
@@ -229,7 +205,7 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
     }
   };
 
-  // Mock performance data
+  // Mock performance data - in a real app, this would come from the API
   const performanceData = [
     { month: 'Yan', score: 75 },
     { month: 'Fev', score: 80 },
@@ -239,7 +215,7 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
     { month: 'İyn', score: 87 },
   ];
 
-  // Mock radar chart data
+  // Mock radar chart data - in a real app, this would come from the API
   const radarData = [
     { subject: 'Əməkdaşlıq', A: 120, fullMark: 150 },
     { subject: 'İnisiativlik', A: 110, fullMark: 150 },
@@ -249,7 +225,7 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
     { subject: 'İdarəetmə', A: 85, fullMark: 150 },
   ];
 
-  // Mock tasks data
+  // Mock tasks data - in a real app, this would come from the API
   const tasks = [
     { id: 1, title: 'İşçilərin qiymətləndirilməsi', dueDate: '2023-10-20', priority: 'high', completed: false },
     { id: 2, title: 'Performans hesabatı təqdimatı', dueDate: '2023-10-22', priority: 'medium', completed: false },
@@ -265,8 +241,8 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
         <Sidebar 
           activePage={activePage} 
           onNavigate={handleNavigate} 
-          onLogout={onLogout} 
-          currentUser={currentUser}
+          onLogout={handleLogout} 
+          currentUser={user}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
           <Header title="Dashboard" />
@@ -292,13 +268,67 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
     );
   }
 
+  if (error) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar 
+          activePage={activePage} 
+          onNavigate={handleNavigate} 
+          onLogout={handleLogout} 
+          currentUser={user}
+        />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="Dashboard" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Card style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto var(--spacing-lg) auto',
+                color: 'var(--error-color)'
+              }}>
+                <AlertCircle size={32} />
+              </div>
+              <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>Səhv baş verdi</h3>
+              <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
+                {error}
+              </p>
+              <Button 
+                variant="primary" 
+                onClick={() => window.location.reload()}
+              >
+                Yenidən cəhd et
+              </Button>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return <MobileDashboard onLogout={handleLogout} currentUser={user} />;
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar 
         activePage={activePage} 
         onNavigate={handleNavigate} 
-        onLogout={onLogout} 
-        currentUser={currentUser}
+        onLogout={handleLogout} 
+        currentUser={user}
       />
       
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
@@ -359,7 +389,7 @@ const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) =
                   {card.description}
                 </p>
                 <p className={`text-small ${card.trend === 'up' ? 'text-success' : 'text-error'}`} style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                  {card.trend === 'up' ? <TrendingUp size={14} /> : <AlertCircle size={14} />}
+                  {card.trend === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                   {card.change}
                 </p>
               </Card>

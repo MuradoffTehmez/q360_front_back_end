@@ -210,27 +210,35 @@ def mfa_disable_view(request):
 def send_verification_email(user):
     """Send email verification to the user"""
     # In a real application, you would use a proper email service
-    # For now, we'll just print to console
+    # For now, we'll just print to console but also send actual email
     print(f"Send verification email to {user.email} with token {user.email_verification_token}")
-    # Example of how you would send an actual email:
-    # send_mail(
-    #     'Verify your email',
-    #     f'Please verify your email using this token: {user.email_verification_token}',
-    #     settings.DEFAULT_FROM_EMAIL,
-    #     [user.email],
-    #     fail_silently=False,
-    # )
+    
+    # Send actual email
+    try:
+        send_mail(
+            'Verify your email',
+            f'Please verify your email by clicking this link: http://localhost:3000/verify-email?token={user.email_verification_token}',
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Failed to send verification email: {e}")
 
 def send_password_reset_email(user, token):
     """Send password reset email to the user"""
     # In a real application, you would use a proper email service
-    # For now, we'll just print to console
+    # For now, we'll just print to console but also send actual email
     print(f"Send password reset email to {user.email} with token {token}")
-    # Example of how you would send an actual email:
-    # send_mail(
-    #     'Password reset',
-    #     f'Use this token to reset your password: {token}',
-    #     settings.DEFAULT_FROM_EMAIL,
-    #     [user.email],
-    #     fail_silently=False,
-    # )
+    
+    # Send actual email
+    try:
+        send_mail(
+            'Password reset',
+            f'Use this link to reset your password: http://localhost:3000/reset-password?token={token}',
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Failed to send password reset email: {e}")

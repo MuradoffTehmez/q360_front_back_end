@@ -1,4 +1,3 @@
-# create_superuser.py
 import os
 import django
 
@@ -8,13 +7,13 @@ django.setup()
 
 from accounts.models import User
 
-# Create superuser
-if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser(
-        username='admin',
-        email='admin@q360.az',
-        password='admin123'
-    )
-    print('Superuser created successfully!')
-else:
-    print('Superuser already exists!')
+# Create a superuser
+user = User.objects.create_superuser(
+    username='admin',
+    email='admin@example.com',
+    password='admin123',
+    first_name='Admin',
+    last_name='User'
+)
+
+print(f"Superuser created: {user.username}")

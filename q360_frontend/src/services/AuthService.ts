@@ -1,4 +1,6 @@
 // AuthService.ts
+import axios from 'axios';
+
 export interface User {
   id: number;
   username: string;
@@ -13,67 +15,106 @@ export interface User {
 
 const API_BASE_URL = 'http://localhost:8000/api/auth';
 
+// Create axios instance with default config
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add interceptor to include auth token in requests
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add interceptor to handle token refresh
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // If error is 401 and we haven't tried to refresh token yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
+            refresh: refreshToken
+          });
+          
+          const { access } = response.data;
+          localStorage.setItem('access_token', access);
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+          
+          return apiClient(originalRequest);
+        }
+      } catch (refreshError) {
+        // If refresh fails, logout user
+        AuthService.logout();
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 export class AuthService {
   static async login(email: string, password: string): Promise<{user: User, access: string, refresh: string} | null> {
     try {
-      const response = await fetch(`${API_BASE_URL}/login/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username: email, password }),
+      const response = await apiClient.post('/login/', { 
+        username: email, 
+        password 
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Check if MFA is required
-        if (data.mfa_required) {
-          // Return MFA required indicator
-          return { mfaRequired: true, userId: data.user_id } as any;
-        }
-        
-        const user = data.user;
-        // Save tokens and user to localStorage
-        localStorage.setItem('access_token', data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        return {user, access: data.access, refresh: data.refresh};
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
+      if (response.data.mfa_required) {
+        // Return MFA required indicator
+        return { 
+          mfaRequired: true, 
+          userId: response.data.user_id 
+        } as any;
       }
-    } catch (error) {
+      
+      const { user, access, refresh } = response.data;
+      
+      // Save tokens and user to localStorage
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      return { user, access, refresh };
+    } catch (error: any) {
       console.error('Login error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'Login failed');
     }
   }
 
   static async register(userData: any): Promise<{user: User, access: string, refresh: string} | null> {
     try {
-      const response = await fetch(`${API_BASE_URL}/register/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const user = data.user;
-        // Save tokens and user to localStorage
-        localStorage.setItem('access_token', data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        return {user, access: data.access, refresh: data.refresh};
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Registration failed');
-      }
-    } catch (error) {
+      const response = await apiClient.post('/register/', userData);
+      
+      const { user, access, refresh } = response.data;
+      
+      // Save tokens and user to localStorage
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      return { user, access, refresh };
+    } catch (error: any) {
       console.error('Registration error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'Registration failed');
     }
   }
 
@@ -81,13 +122,7 @@ export class AuthService {
     try {
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
-        await fetch(`${API_BASE_URL}/logout/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refresh: refreshToken }),
-        });
+        await apiClient.post('/logout/', { refresh: refreshToken });
       }
     } catch (error) {
       console.error('Logout error:', error);
@@ -118,157 +153,98 @@ export class AuthService {
 
   static async passwordResetRequest(email: string): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/password-reset/request/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Password reset request failed');
-      }
-    } catch (error) {
+      await apiClient.post('/password-reset/request/', { email });
+    } catch (error: any) {
       console.error('Password reset request error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'Password reset request failed');
     }
   }
 
   static async passwordResetConfirm(token: string, newPassword: string): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/password-reset/confirm/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          token, 
-          new_password: newPassword,
-          new_password_confirm: newPassword
-        }),
+      await apiClient.post('/password-reset/confirm/', { 
+        token, 
+        new_password: newPassword,
+        new_password_confirm: newPassword
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Password reset failed');
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Password reset confirm error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'Password reset failed');
     }
   }
 
   static async verifyEmail(token: string): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/verify-email/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Email verification failed');
-      }
-    } catch (error) {
+      await apiClient.post('/verify-email/', { token });
+    } catch (error: any) {
       console.error('Email verification error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'Email verification failed');
     }
   }
 
   static async setupMFA(): Promise<{secret: string, backupCodes: string[], qrCodeUrl: string}> {
     try {
-      const response = await fetch(`${API_BASE_URL}/mfa/setup/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAccessToken()}`
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data;
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'MFA setup failed');
-      }
-    } catch (error) {
+      const response = await apiClient.post('/mfa/setup/');
+      return response.data;
+    } catch (error: any) {
       console.error('MFA setup error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'MFA setup failed');
     }
   }
 
   static async enableMFA(token: string): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/mfa/enable/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAccessToken()}`
-        },
-        body: JSON.stringify({ token }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'MFA enable failed');
-      }
-    } catch (error) {
+      await apiClient.post('/mfa/enable/', { token });
+    } catch (error: any) {
       console.error('MFA enable error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'MFA enable failed');
     }
   }
 
   static async disableMFA(): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/mfa/disable/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAccessToken()}`
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'MFA disable failed');
-      }
-    } catch (error) {
+      await apiClient.post('/mfa/disable/');
+    } catch (error: any) {
       console.error('MFA disable error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'MFA disable failed');
     }
   }
 
   static async verifyMFA(userId: number, token: string, backupCode?: string): Promise<{user: User, access: string, refresh: string}> {
     try {
-      const response = await fetch(`${API_BASE_URL}/mfa/verify/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userId, token, backup_code: backupCode }),
+      const response = await apiClient.post('/mfa/verify/', { 
+        user_id: userId, 
+        token, 
+        backup_code: backupCode 
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        const user = data.user;
-        // Save tokens and user to localStorage
-        localStorage.setItem('access_token', data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        return {user, access: data.access, refresh: data.refresh};
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'MFA verification failed');
-      }
-    } catch (error) {
+      
+      const { user, access, refresh } = response.data;
+      
+      // Save tokens and user to localStorage
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      return { user, access, refresh };
+    } catch (error: any) {
       console.error('MFA verification error:', error);
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || 'MFA verification failed');
+    }
+  }
+
+  // New method to fetch current user data from backend
+  static async fetchCurrentUser(): Promise<User | null> {
+    try {
+      const response = await apiClient.get('/me/');
+      const user = response.data;
+      
+      // Update user in localStorage
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      return user;
+    } catch (error) {
+      console.error('Fetch current user error:', error);
+      return null;
     }
   }
 }

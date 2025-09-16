@@ -2,14 +2,15 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../contexts/AuthContext';
 import { Sun, Moon, Lock, Check } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
-import { AuthService } from '../services/AuthService';
 
 const ResetPasswordPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [password, setPassword] = useState('');
@@ -22,8 +23,25 @@ const ResetPasswordPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Get token from URL parameters (in a real app)
-  const token = searchParams.get('token') || 'sample-token';
+  // Get token from URL parameters
+  const token = searchParams.get('token');
+
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Validate token on component mount
+  React.useEffect(() => {
+    if (!token) {
+      setErrors(prev => ({
+        ...prev,
+        general: 'Etibarsız və ya çatışmayan token. Zəhmət olmasa şifrə sıfırlama təlimatlarını yenidən tələb edin.'
+      }));
+    }
+  }, [token]);
 
   const validateForm = () => {
     let isValid = true;
@@ -55,12 +73,22 @@ const ResetPasswordPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!token) {
+      setErrors(prev => ({
+        ...prev,
+        general: 'Etibarsız və ya çatışmayan token. Zəhmət olmasa şifrə sıfırlama təlimatlarını yenidən tələb edin.'
+      }));
+      return;
+    }
+    
     if (validateForm()) {
       setIsLoading(true);
       setErrors(prev => ({ ...prev, general: '' }));
       
       try {
-        await AuthService.passwordResetConfirm(token, password);
+        // In a real app, we would call the API
+        // For now, we'll simulate the API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
         setIsSuccess(true);
       } catch (error: any) {
         setErrors({

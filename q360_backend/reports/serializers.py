@@ -1,6 +1,6 @@
 # reports/serializers.py
 from rest_framework import serializers
-from .models import ReportTemplate, GeneratedReport, Benchmark, TalentMatrix
+from .models import ReportTemplate, GeneratedReport, Benchmark, TalentMatrix, DashboardMetric, DashboardWidget
 from accounts.models import User, Department
 from evaluations.models import EvaluationCycle, Competency
 
@@ -54,3 +54,44 @@ class TalentMatrixSerializer(serializers.ModelSerializer):
     class Meta:
         model = TalentMatrix
         fields = '__all__'
+
+class DashboardMetricSerializer(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
+    employee = UserSerializer(read_only=True)
+    cycle = EvaluationCycleSerializer(read_only=True)
+    
+    class Meta:
+        model = DashboardMetric
+        fields = '__all__'
+
+class DashboardWidgetSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    department = DepartmentSerializer(read_only=True)
+    
+    class Meta:
+        model = DashboardWidget
+        fields = '__all__'
+
+class DashboardSummarySerializer(serializers.Serializer):
+    # Admin dashboard data
+    total_users = serializers.IntegerField()
+    total_ideas = serializers.IntegerField()
+    total_evaluations = serializers.IntegerField()
+    pending_evaluations = serializers.IntegerField()
+    
+    # Manager dashboard data
+    team_members = serializers.IntegerField()
+    team_evaluations = serializers.IntegerField()
+    pending_team_evaluations = serializers.IntegerField()
+    team_performance = serializers.IntegerField()
+    
+    # Employee dashboard data
+    my_evaluations = serializers.IntegerField()
+    pending_my_evaluations = serializers.IntegerField()
+    my_ideas = serializers.IntegerField()
+    performance_score = serializers.IntegerField()
+    
+    # Common data
+    recent_activities = serializers.ListField(
+        child=serializers.DictField()
+    )

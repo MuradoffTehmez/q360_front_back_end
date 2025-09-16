@@ -101,7 +101,7 @@ class DashboardViewSet(viewsets.ViewSet):
             
             data = {
                 'my_evaluations': my_evaluations,
-                'pending_evaluations': pending_evaluations,
+                'pending_my_evaluations': pending_evaluations,
                 'my_ideas': my_ideas,
                 'performance_score': 78,  # Mock data
                 'recent_activities': [

@@ -1,8 +1,8 @@
 // App.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
-import { AuthService } from './services/AuthService';
+import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import RegistrationPage from './pages/RegistrationPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -27,120 +27,38 @@ import NotFoundPage from './pages/NotFoundPage';
 import './styles/globals.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
-
-  useEffect(() => {
-    // Check if user is already logged in
-    const user = AuthService.getCurrentUser();
-    if (user) {
-      setIsLoggedIn(true);
-      setCurrentUser(user);
-    }
-  }, []);
-
-  const handleLogin = () => {
-    const user = AuthService.getCurrentUser();
-    setIsLoggedIn(true);
-    setCurrentUser(user);
-  };
-
-  const handleLogout = () => {
-    AuthService.logout();
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-  };
-
   return (
     <ThemeProvider>
-      <Router>
-        <div className="App">
-          <Routes>
-            <Route 
-              path="/login" 
-              element={isLoggedIn ? <Navigate to="/dashboard" /> : <LoginPage />} 
-            />
-            <Route 
-              path="/register" 
-              element={isLoggedIn ? <Navigate to="/dashboard" /> : <RegistrationPage />} 
-            />
-            <Route 
-              path="/forgot-password" 
-              element={isLoggedIn ? <Navigate to="/dashboard" /> : <ForgotPasswordPage />} 
-            />
-            <Route 
-              path="/reset-password" 
-              element={isLoggedIn ? <Navigate to="/dashboard" /> : <ResetPasswordPage />} 
-            />
-            <Route 
-              path="/verify-email" 
-              element={<VerifyEmailPage />} 
-            />
-            <Route 
-              path="/mfa" 
-              element={isLoggedIn ? <MFAPage /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/mfa-verify" 
-              element={<MFAVerifyPage />} 
-            />
-            <Route 
-              path="/dashboard" 
-              element={isLoggedIn ? <Dashboard onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/profile" 
-              element={isLoggedIn ? <EnhancedProfilePage onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/profile-basic" 
-              element={isLoggedIn ? <ProfilePage onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/evaluation" 
-              element={isLoggedIn ? <EnhancedEvaluationForm onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/evaluation-basic" 
-              element={isLoggedIn ? <EvaluationForm onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/reports" 
-              element={isLoggedIn ? <ReportsPage onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/team" 
-              element={isLoggedIn ? <TeamDashboard onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/admin" 
-              element={isLoggedIn ? <AdminPanel onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/settings" 
-              element={isLoggedIn ? <SettingsPage onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/evaluation-wizard" 
-              element={isLoggedIn ? <EvaluationWizard onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/ideas" 
-              element={isLoggedIn ? <IdeasBank onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/notifications" 
-              element={isLoggedIn ? <NotificationsCenter onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/report-center" 
-              element={isLoggedIn ? <ReportCenter onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
-            />
-            <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </div>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <div className="App">
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegistrationPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/mfa" element={<MFAPage />} />
+              <Route path="/mfa-verify" element={<MFAVerifyPage />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/profile" element={<EnhancedProfilePage />} />
+              <Route path="/profile-basic" element={<ProfilePage />} />
+              <Route path="/evaluation" element={<EnhancedEvaluationForm />} />
+              <Route path="/evaluation-basic" element={<EvaluationForm />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/team" element={<TeamDashboard />} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/evaluation-wizard" element={<EvaluationWizard />} />
+              <Route path="/ideas" element={<IdeasBank />} />
+              <Route path="/notifications" element={<NotificationsCenter />} />
+              <Route path="/report-center" element={<ReportCenter />} />
+              <Route path="/" element={<Navigate to="/dashboard" />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </div>
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

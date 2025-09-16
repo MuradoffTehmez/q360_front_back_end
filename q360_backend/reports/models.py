@@ -103,3 +103,64 @@ class TalentMatrix(models.Model):
     
     def __str__(self):
         return f"{self.employee} - {self.cycle.name}"
+
+# Dashboard models
+class DashboardMetric(models.Model):
+    METRIC_TYPE_CHOICES = [
+        ('number', 'Number'),
+        ('percentage', 'Percentage'),
+        ('currency', 'Currency'),
+        ('text', 'Text'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    metric_type = models.CharField(max_length=20, choices=METRIC_TYPE_CHOICES, default='number')
+    value = models.FloatField()
+    previous_value = models.FloatField(null=True, blank=True)
+    target_value = models.FloatField(null=True, blank=True)
+    
+    # Related entities
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    employee = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    cycle = models.ForeignKey(EvaluationCycle, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Dashboard Metric'
+        verbose_name_plural = 'Dashboard Metrics'
+    
+    def __str__(self):
+        return f"{self.name}: {self.value}"
+
+class DashboardWidget(models.Model):
+    WIDGET_TYPE_CHOICES = [
+        ('metric', 'Metric Card'),
+        ('chart', 'Chart'),
+        ('table', 'Data Table'),
+        ('list', 'Activity List'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    widget_type = models.CharField(max_length=20, choices=WIDGET_TYPE_CHOICES)
+    config = models.JSONField(help_text="Widget configuration data")
+    
+    # Position and visibility
+    order = models.PositiveIntegerField(default=0)
+    is_visible = models.BooleanField(default=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Dashboard Widget'
+        verbose_name_plural = 'Dashboard Widgets'
+        ordering = ['order']
+    
+    def __str__(self):
+        return self.title
