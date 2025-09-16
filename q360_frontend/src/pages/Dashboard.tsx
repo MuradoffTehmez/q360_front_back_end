@@ -16,7 +16,8 @@ import {
   Target,
   Award,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Menu
 } from 'lucide-react';
 import { User } from '../services/AuthService';
 import PerformanceChart from '../components/dashboard/PerformanceChart';
@@ -24,6 +25,7 @@ import ActivityFeed from '../components/dashboard/ActivityFeed';
 import TaskList from '../components/dashboard/TaskList';
 import CircularProgressBar from '../components/dashboard/CircularProgressBar';
 import RadarChart from '../components/dashboard/RadarChart';
+import MobileDashboard from './MobileDashboard';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -31,6 +33,25 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  if (isMobile) {
+    return <MobileDashboard onLogout={onLogout} currentUser={currentUser} />;
+  }
+  
+  return <DesktopDashboard onLogout={onLogout} currentUser={currentUser} />;
+};
+
+const DesktopDashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('dashboard');
   const [loading, setLoading] = useState(true);
