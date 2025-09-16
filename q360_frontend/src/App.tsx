@@ -21,6 +21,8 @@ import AdminPanel from './pages/AdminPanel';
 import SettingsPage from './pages/SettingsPage';
 import EvaluationWizard from './pages/EvaluationWizard';
 import IdeasBank from './pages/IdeasBank';
+import SubmitIdeaPage from './pages/SubmitIdeaPage';
+import IdeaDetailPage from './pages/IdeaDetailPage';
 import NotificationsCenter from './pages/NotificationsCenter';
 import ReportCenter from './pages/ReportCenter';
 import NotFoundPage from './pages/NotFoundPage';
@@ -51,6 +53,8 @@ function App() {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/evaluation-wizard" element={<EvaluationWizard />} />
               <Route path="/ideas" element={<IdeasBank />} />
+              <Route path="/submit-idea" element={<SubmitIdeaPage />} />
+              <Route path="/idea/:id" element={<IdeaDetailPage />} />
               <Route path="/notifications" element={<NotificationsCenter />} />
               <Route path="/report-center" element={<ReportCenter />} />
               <Route path="/" element={<Navigate to="/dashboard" />} />

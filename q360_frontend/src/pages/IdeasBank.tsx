@@ -1,92 +1,183 @@
 // IdeasBank.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { User } from '../services/AuthService';
 import { Lightbulb, ThumbsUp, MessageCircle, Search, Filter, Plus, Award, TrendingUp } from 'lucide-react';
+import { IdeasService, Idea } from '../services/ideasService';
 
-interface IdeasBankProps {
-  onLogout: () => void;
-  currentUser: User | null;
-}
-
-const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
+const IdeasBank: React.FC = () => {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('ideas');
-  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
   const handleNavigate = (page: string) => {
     setActivePage(page);
     navigate(`/${page}`);
   };
 
-  // Mock ideas data
-  const ideas = [
-    {
-      id: 1,
-      title: 'Remote Work Policy Improvement',
-      description: 'Enhance our remote work policies to increase productivity and work-life balance.',
-      author: 'Əliyev Cavid',
-      department: 'İT Departamenti',
-      likes: 24,
-      comments: 8,
-      date: '2023-10-15',
-      status: 'Under Review'
-    },
-    {
-      id: 2,
-      title: 'New Employee Onboarding Program',
-      description: 'Create a more comprehensive onboarding program for new hires.',
-      author: 'Məmmədova Leyla',
-      department: 'HR Departamenti',
-      likes: 18,
-      comments: 5,
-      date: '2023-10-10',
-      status: 'Approved'
-    },
-    {
-      id: 3,
-      title: 'Office Sustainability Initiative',
-      description: 'Implement eco-friendly practices in our office spaces.',
-      author: 'Həsənov Rəşad',
-      department: 'Ümumi İdarə',
-      likes: 32,
-      comments: 12,
-      date: '2023-10-05',
-      status: 'Implemented'
-    },
-    {
-      id: 4,
-      title: 'Flexible Working Hours',
-      description: 'Introduce flexible working hours to improve work-life balance.',
-      author: 'Quliyeva Nərgiz',
-      department: 'Marketinq',
-      likes: 41,
-      comments: 15,
-      date: '2023-09-28',
-      status: 'Under Review'
-    }
-  ];
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
+  // Fetch ideas from backend
+  useEffect(() => {
+    const fetchIdeas = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const ideasData = await IdeasService.getIdeas();
+        setIdeas(ideasData);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load ideas');
+        console.error('Error fetching ideas:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchIdeas();
+    }
+  }, [user]);
+
+  // Handle upvoting an idea
+  const handleUpvote = async (ideaId: number) => {
+    try {
+      const result = await IdeasService.upvoteIdea(ideaId);
+      setIdeas(ideas.map(idea => 
+        idea.id === ideaId 
+          ? { ...idea, likes_count: result.likes_count } 
+          : idea
+      ));
+    } catch (err: any) {
+      console.error('Error upvoting idea:', err);
+      alert('Upvoting failed: ' + err.message);
+    }
+  };
+
+  // Handle downvoting an idea
+  const handleDownvote = async (ideaId: number) => {
+    try {
+      const result = await IdeasService.downvoteIdea(ideaId);
+      setIdeas(ideas.map(idea => 
+        idea.id === ideaId 
+          ? { ...idea, likes_count: result.likes_count } 
+          : idea
+      ));
+    } catch (err: any) {
+      console.error('Error downvoting idea:', err);
+      alert('Downvoting failed: ' + err.message);
+    }
+  };
+
+  // Filter ideas based on search term
+  const filteredIdeas = ideas.filter(idea => 
+    idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    idea.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    idea.submitter.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    idea.submitter.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Mock top contributors data (in a real app, this would come from the API)
   const topContributors = [
     { id: 1, name: 'Əliyev Cavid', ideas: 12, department: 'İT' },
     { id: 2, name: 'Quliyeva Nərgiz', ideas: 9, department: 'Marketinq' },
     { id: 3, name: 'Həsənov Rəşad', ideas: 7, department: 'Ümumi İdarə' }
   ];
 
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="İdeya Bankı" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div className="loading-spinner" style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid rgba(0, 123, 255, 0.2)',
+              borderTop: '4px solid var(--primary-color)',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+          <Header title="İdeya Bankı" />
+          <main style={{ 
+            flex: 1, 
+            padding: 'var(--spacing-lg)',
+            backgroundColor: 'var(--background-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Card style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto var(--spacing-lg) auto',
+                color: 'var(--error-color)'
+              }}>
+                <Lightbulb size={32} />
+              </div>
+              <h3 style={{ margin: '0 0 var(--spacing-md) 0' }}>Səhv baş verdi</h3>
+              <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
+                {error}
+              </p>
+              <Button 
+                variant="primary" 
+                onClick={() => window.location.reload()}
+              >
+                Yenidən cəhd et
+              </Button>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar 
         activePage={activePage} 
         onNavigate={handleNavigate} 
-        onLogout={onLogout} 
-        currentUser={currentUser}
+        onLogout={handleLogout} 
+        currentUser={user}
       />
       
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px', marginTop: '70px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
+        <Header title="İdeya Bankı" />
+        
         <main style={{ 
           flex: 1, 
           padding: 'var(--spacing-lg)',
@@ -108,7 +199,11 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
               </p>
             </div>
             
-            <Button variant="primary" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+            <Button 
+              variant="primary" 
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}
+              onClick={() => navigate('/submit-idea')}
+            >
               <Plus size={18} />
               Yeni İdea Təqdim Et
             </Button>
@@ -140,6 +235,8 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                       }} />
                       <Input 
                         placeholder="İdeya axtar..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         style={{ 
                           paddingLeft: '34px',
                           width: '200px'
@@ -154,7 +251,7 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                  {ideas.map((idea) => (
+                  {filteredIdeas.map((idea) => (
                     <Card key={idea.id} style={{ 
                       borderLeft: '4px solid var(--primary-color)',
                       cursor: 'pointer',
@@ -162,6 +259,7 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
                     onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'var(--shadow)'}
+                    onClick={() => navigate(`/idea/${idea.id}`)}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
@@ -171,13 +269,13 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                           </p>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
                             <span className="text-small" style={{ fontWeight: 500 }}>
-                              {idea.author}
+                              {idea.submitter.first_name} {idea.submitter.last_name}
                             </span>
                             <span className="text-small text-secondary">
-                              {idea.department}
+                              {idea.department?.name || 'Departament təyin edilməyib'}
                             </span>
                             <span className="text-small text-secondary">
-                              {new Date(idea.date).toLocaleDateString('az-AZ')}
+                              {new Date(idea.created_at).toLocaleDateString('az-AZ')}
                             </span>
                           </div>
                         </div>
@@ -185,20 +283,25 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                         <div style={{ 
                           padding: 'var(--spacing-xs) var(--spacing-sm)',
                           borderRadius: 'var(--border-radius-small)',
-                          backgroundColor: idea.status === 'Implemented' 
+                          backgroundColor: idea.status === 'implemented' 
                             ? 'rgba(40, 167, 69, 0.1)' 
-                            : idea.status === 'Approved' 
+                            : idea.status === 'approved' 
                               ? 'rgba(0, 123, 255, 0.1)' 
                               : 'rgba(255, 193, 7, 0.1)',
-                          color: idea.status === 'Implemented' 
+                          color: idea.status === 'implemented' 
                             ? 'var(--success-color)' 
-                            : idea.status === 'Approved' 
+                            : idea.status === 'approved' 
                               ? 'var(--primary-color)' 
                               : '#FFC107',
                           fontSize: 'var(--font-size-small)',
                           fontWeight: 500
                         }}>
-                          {idea.status}
+                          {idea.status === 'implemented' && 'Tətbiq Edilib'}
+                          {idea.status === 'approved' && 'Təsdiqlənib'}
+                          {idea.status === 'under_review' && 'İncələnir'}
+                          {idea.status === 'submitted' && 'Təqdim Edilib'}
+                          {idea.status === 'draft' && 'Qaralama'}
+                          {idea.status === 'rejected' && 'Rədd Edilib'}
                         </div>
                       </div>
                       
@@ -209,32 +312,44 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                         paddingTop: 'var(--spacing-sm)',
                         borderTop: '1px solid var(--border-color)'
                       }}>
-                        <button style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 'var(--spacing-xs)',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--secondary-text-color)',
-                          cursor: 'pointer',
-                          padding: 'var(--spacing-xs) 0'
-                        }}>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUpvote(idea.id);
+                          }}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 'var(--spacing-xs)',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--secondary-text-color)',
+                            cursor: 'pointer',
+                            padding: 'var(--spacing-xs) 0'
+                          }}
+                        >
                           <ThumbsUp size={16} />
-                          <span>{idea.likes}</span>
+                          <span>{idea.likes_count}</span>
                         </button>
                         
-                        <button style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 'var(--spacing-xs)',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--secondary-text-color)',
-                          cursor: 'pointer',
-                          padding: 'var(--spacing-xs) 0'
-                        }}>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownvote(idea.id);
+                          }}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 'var(--spacing-xs)',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--secondary-text-color)',
+                            cursor: 'pointer',
+                            padding: 'var(--spacing-xs) 0'
+                          }}
+                        >
                           <MessageCircle size={16} />
-                          <span>{idea.comments}</span>
+                          <span>{idea.comments_count}</span>
                         </button>
                       </div>
                     </Card>
@@ -322,7 +437,7 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                       fontWeight: 'bold',
                       color: 'var(--primary-color)'
                     }}>
-                      42
+                      {ideas.length}
                     </p>
                     <p className="text-secondary text-small" style={{ margin: 0 }}>
                       Ümumi İdea
@@ -341,7 +456,7 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                       fontWeight: 'bold',
                       color: 'var(--success-color)'
                     }}>
-                      18
+                      {ideas.filter(i => i.status === 'implemented').length}
                     </p>
                     <p className="text-secondary text-small" style={{ margin: 0 }}>
                       Tətbiq Edilən
@@ -360,7 +475,7 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                       fontWeight: 'bold',
                       color: '#FFC107'
                     }}>
-                      7
+                      {ideas.filter(i => i.status === 'approved').length}
                     </p>
                     <p className="text-secondary text-small" style={{ margin: 0 }}>
                       Təsdiqlənən
@@ -379,7 +494,7 @@ const IdeasBank: React.FC<IdeasBankProps> = ({ onLogout, currentUser }) => {
                       fontWeight: 'bold',
                       color: 'var(--secondary-text-color)'
                     }}>
-                      3
+                      {ideas.filter(i => i.status === 'under_review').length}
                     </p>
                     <p className="text-secondary text-small" style={{ margin: 0 }}>
                       İncələnən

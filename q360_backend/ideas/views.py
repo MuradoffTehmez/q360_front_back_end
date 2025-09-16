@@ -22,8 +22,13 @@ class IdeaViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description']
     ordering_fields = ['created_at', 'likes_count', 'views_count']
 
+    def perform_create(self, serializer):
+        # Set the submitter to the current user
+        serializer.save(submitter=self.request.user)
+
     @action(detail=True, methods=['post'])
     def like(self, request, pk=None):
+        """Like or unlike an idea"""
         idea = self.get_object()
         like, created = IdeaLike.objects.get_or_create(
             idea=idea,
@@ -38,6 +43,61 @@ class IdeaViewSet(viewsets.ModelViewSet):
             message = 'Liked'
         idea.save()
         return Response({'message': message, 'likes_count': idea.likes_count})
+
+    @action(detail=True, methods=['post'])
+    def upvote(self, request, pk=None):
+        """Upvote an idea (alias for like)"""
+        return self.like(request, pk)
+
+    @action(detail=True, methods=['post'])
+    def downvote(self, request, pk=None):
+        """Downvote an idea (removes like if exists)"""
+        idea = self.get_object()
+        try:
+            like = IdeaLike.objects.get(idea=idea, user=request.user)
+            like.delete()
+            idea.likes_count -= 1
+            idea.save()
+            return Response({'message': 'Downvoted', 'likes_count': idea.likes_count})
+        except IdeaLike.DoesNotExist:
+            return Response({'message': 'Not liked yet', 'likes_count': idea.likes_count})
+
+    @action(detail=True, methods=['get'])
+    def comments(self, request, pk=None):
+        """Get all comments for an idea"""
+        idea = self.get_object()
+        comments = idea.comments.filter(parent=None)  # Only top-level comments
+        serializer = IdeaCommentSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_comment(self, request, pk=None):
+        """Add a comment to an idea"""
+        idea = self.get_object()
+        content = request.data.get('content', '')
+        parent_id = request.data.get('parent_id', None)
+        
+        if not content:
+            return Response({'error': 'Content is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if parent comment exists and belongs to the same idea
+        parent = None
+        if parent_id:
+            try:
+                parent = IdeaComment.objects.get(id=parent_id, idea=idea)
+            except IdeaComment.DoesNotExist:
+                return Response({'error': 'Parent comment not found'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create the comment
+        comment = IdeaComment.objects.create(
+            idea=idea,
+            author=request.user,
+            content=content,
+            parent=parent
+        )
+        
+        serializer = IdeaCommentSerializer(comment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class IdeaLikeViewSet(viewsets.ModelViewSet):
     queryset = IdeaLike.objects.all()
