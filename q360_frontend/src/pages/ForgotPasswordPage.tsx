@@ -6,6 +6,7 @@ import { Sun, Moon, Mail, ArrowLeft } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
+import { AuthService } from '../services/AuthService';
 
 const ForgotPasswordPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -13,13 +14,14 @@ const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState({
     email: '',
+    general: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { email: '' };
+    const newErrors = { email: '', general: '' };
 
     if (!email) {
       newErrors.email = 'Email ünvanı tələb olunur';
@@ -33,18 +35,24 @@ const ForgotPasswordPage: React.FC = () => {
     return isValid;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
       setIsLoading(true);
+      setErrors(prev => ({ ...prev, general: '' }));
       
-      // Simulate API call delay
-      setTimeout(() => {
-        // In a real app, this would send a password reset email
+      try {
+        await AuthService.passwordResetRequest(email);
         setIsSubmitted(true);
+      } catch (error: any) {
+        setErrors({
+          email: '',
+          general: error.message || 'Şifrə sıfırlama təlimatı göndərilərkən xəta baş verdi'
+        });
+      } finally {
         setIsLoading(false);
-      }, 1500);
+      }
     }
   };
 
@@ -206,6 +214,19 @@ const ForgotPasswordPage: React.FC = () => {
           Şifrənizi sıfırlamaq üçün email ünvanınızı daxil edin. 
           Sıfırlama təlimatlarını həmin ünvana göndərəcəyik.
         </p>
+        
+        {errors.general && (
+          <div style={{ 
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            color: 'var(--error-color)',
+            borderRadius: 'var(--border-radius-medium)',
+            marginBottom: 'var(--spacing-md)',
+            fontSize: 'var(--font-size-small)'
+          }}>
+            {errors.general}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: 'var(--spacing-lg)' }}>

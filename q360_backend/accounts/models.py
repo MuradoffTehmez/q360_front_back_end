@@ -2,6 +2,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
+from django.utils.crypto import get_random_string
 from .managers import CustomUserManager
 
 class Department(models.Model):
@@ -33,6 +34,14 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     
+    # Email verification fields
+    email_verified = models.BooleanField(default=False)
+    email_verification_token = models.CharField(max_length=100, blank=True)
+    
+    # Password reset fields
+    password_reset_token = models.CharField(max_length=100, blank=True)
+    password_reset_expires = models.DateTimeField(null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -58,3 +67,17 @@ class User(AbstractUser):
         if self.is_manager:
             return User.objects.filter(manager=self)
         return User.objects.none()
+    
+    def generate_email_verification_token(self):
+        """Generate a unique token for email verification"""
+        self.email_verification_token = get_random_string(50)
+        self.save()
+        return self.email_verification_token
+    
+    def generate_password_reset_token(self):
+        """Generate a unique token for password reset"""
+        self.password_reset_token = get_random_string(50)
+        from django.utils import timezone
+        self.password_reset_expires = timezone.now() + timezone.timedelta(hours=24)
+        self.save()
+        return self.password_reset_token

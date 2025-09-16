@@ -6,6 +6,7 @@ import { Sun, Moon, Lock, Check } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
+import { AuthService } from '../services/AuthService';
 
 const ResetPasswordPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -16,6 +17,7 @@ const ResetPasswordPage: React.FC = () => {
   const [errors, setErrors] = useState({
     password: '',
     confirmPassword: '',
+    general: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -25,7 +27,7 @@ const ResetPasswordPage: React.FC = () => {
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { password: '', confirmPassword: '' };
+    const newErrors = { password: '', confirmPassword: '', general: '' };
 
     if (!password) {
       newErrors.password = 'Şifrə tələb olunur';
@@ -50,18 +52,25 @@ const ResetPasswordPage: React.FC = () => {
     return isValid;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
       setIsLoading(true);
+      setErrors(prev => ({ ...prev, general: '' }));
       
-      // Simulate API call delay
-      setTimeout(() => {
-        // In a real app, this would reset the password using the token
+      try {
+        await AuthService.passwordResetConfirm(token, password);
         setIsSuccess(true);
+      } catch (error: any) {
+        setErrors({
+          password: '',
+          confirmPassword: '',
+          general: error.message || 'Şifrə yenilənərkən xəta baş verdi'
+        });
+      } finally {
         setIsLoading(false);
-      }, 1500);
+      }
     }
   };
 
@@ -203,6 +212,19 @@ const ResetPasswordPage: React.FC = () => {
         <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
           Yeni şifrənizi təyin edin. Şifrəniz ən azı 8 simvol olmalı və böyük, kiçik hərf və rəqəm daxil etməlidir.
         </p>
+        
+        {errors.general && (
+          <div style={{ 
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            color: 'var(--error-color)',
+            borderRadius: 'var(--border-radius-medium)',
+            marginBottom: 'var(--spacing-md)',
+            fontSize: 'var(--font-size-small)'
+          }}>
+            {errors.general}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: 'var(--spacing-lg)' }}>

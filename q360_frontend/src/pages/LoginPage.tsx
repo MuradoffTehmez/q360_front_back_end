@@ -6,7 +6,7 @@ import { Sun, Moon, Mail, Lock } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
-import { AuthService } from '../services/AuthService';
+import { AuthService, User } from '../services/AuthService';
 
 const LoginPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -16,12 +16,13 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState({
     email: '',
     password: '',
+    general: ''
   });
   const [isLoading, setIsLoading] = useState(false);
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { email: '', password: '' };
+    const newErrors = { email: '', password: '', general: '' };
 
     if (!email) {
       newErrors.email = 'Email ünvanı tələb olunur';
@@ -43,29 +44,30 @@ const LoginPage: React.FC = () => {
     return isValid;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
       setIsLoading(true);
+      setErrors(prev => ({ ...prev, general: '' }));
       
-      // Simulate API call delay
-      setTimeout(() => {
-        const user = AuthService.login(email, password);
+      try {
+        const result = await AuthService.login(email, password);
         
-        if (user) {
+        if (result) {
           // Successful login
           navigate('/dashboard');
-        } else {
-          // Failed login
-          setErrors({
-            ...errors,
-            password: 'Email və ya şifrə yanlışdır'
-          });
         }
-        
+      } catch (error: any) {
+        // Failed login
+        setErrors({
+          email: '',
+          password: '',
+          general: error.message || 'Email və ya şifrə yanlışdır'
+        });
+      } finally {
         setIsLoading(false);
-      }, 800);
+      }
     }
   };
 
@@ -145,6 +147,19 @@ const LoginPage: React.FC = () => {
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </Button>
         </div>
+        
+        {errors.general && (
+          <div style={{ 
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            color: 'var(--error-color)',
+            borderRadius: 'var(--border-radius-medium)',
+            marginBottom: 'var(--spacing-md)',
+            fontSize: 'var(--font-size-small)'
+          }}>
+            {errors.general}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: 'var(--spacing-lg)' }}>
@@ -232,7 +247,7 @@ const LoginPage: React.FC = () => {
             </div>
             
             <a 
-              href="#" 
+              href="/forgot-password" 
               style={{ 
                 color: 'var(--primary-color)', 
                 textDecoration: 'none',
@@ -268,8 +283,7 @@ const LoginPage: React.FC = () => {
           zIndex: 1
         }}>
           <p className="text-secondary" style={{ margin: 0 }}>
-            Demo giriş: <br />
-            <strong>cavid@q360.az</strong> / <strong>demo123</strong>
+            Hesabınız yoxdur? <a href="/register" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>Qeydiyyatdan keçin</a>
           </p>
         </div>
       </Card>

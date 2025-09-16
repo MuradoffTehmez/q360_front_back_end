@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import RegistrationPage from './pages/RegistrationPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
 import EnhancedProfilePage from './pages/EnhancedProfilePage';
@@ -68,6 +69,10 @@ function App() {
             <Route 
               path="/reset-password" 
               element={isLoggedIn ? <Navigate to="/dashboard" /> : <ResetPasswordPage />} 
+            />
+            <Route 
+              path="/verify-email" 
+              element={<VerifyEmailPage />} 
             />
             <Route 
               path="/dashboard" 

@@ -6,6 +6,7 @@ import { Sun, Moon, User, Mail, Lock, Building, Phone } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
+import { AuthService } from '../services/AuthService';
 
 const RegistrationPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -27,6 +28,7 @@ const RegistrationPage: React.FC = () => {
     confirmPassword: '',
     department: '',
     phone: '',
+    general: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -41,6 +43,7 @@ const RegistrationPage: React.FC = () => {
       confirmPassword: '',
       department: '',
       phone: '',
+      general: ''
     };
 
     if (!formData.firstName) {
@@ -97,18 +100,46 @@ const RegistrationPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
       setIsLoading(true);
+      setErrors(prev => ({ ...prev, general: '' }));
       
-      // Simulate API call delay
-      setTimeout(() => {
-        // In a real app, this would register the user
-        setIsSuccess(true);
+      try {
+        // Prepare data for registration
+        const registrationData = {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+          password_confirm: formData.confirmPassword,
+          department: formData.department,
+          phone: formData.phone,
+        };
+        
+        const result = await AuthService.register(registrationData);
+        
+        if (result) {
+          // Successful registration
+          setIsSuccess(true);
+        }
+      } catch (error: any) {
+        // Failed registration
+        setErrors({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          department: '',
+          phone: '',
+          general: error.message || 'Qeydiyyat uğursuz oldu'
+        });
+      } finally {
         setIsLoading(false);
-      }, 1500);
+      }
     }
   };
 
@@ -150,7 +181,7 @@ const RegistrationPage: React.FC = () => {
           
           <h2 style={{ margin: '0 0 var(--spacing-md) 0' }}>Qeydiyyat uğurlu oldu</h2>
           <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
-            Hesabınız uğurla yaradıldı. Admin tərəfindən təsdiqləndikdən sonra sistemə daxil ola biləcəksiniz.
+            Hesabınız uğurla yaradıldı. Zəhmət olmasa email ünvanınıza göndərilən təsdiq linkinə daxil olun.
           </p>
           
           <Button 
@@ -250,6 +281,19 @@ const RegistrationPage: React.FC = () => {
         <p className="text-secondary" style={{ margin: '0 0 var(--spacing-lg) 0' }}>
           Yeni hesab yaratmaq üçün məlumatlarınızı daxil edin.
         </p>
+        
+        {errors.general && (
+          <div style={{ 
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            color: 'var(--error-color)',
+            borderRadius: 'var(--border-radius-medium)',
+            marginBottom: 'var(--spacing-md)',
+            fontSize: 'var(--font-size-small)'
+          }}>
+            {errors.general}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)' }}>

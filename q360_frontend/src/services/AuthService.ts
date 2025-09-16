@@ -1,54 +1,94 @@
 // AuthService.ts
 export interface User {
   id: number;
-  name: string;
+  username: string;
   email: string;
+  first_name: string;
+  last_name: string;
   role: 'admin' | 'manager' | 'employee';
-  department: string;
+  department?: string;
+  email_verified: boolean;
 }
 
-export class AuthService {
-  // Demo users for testing
-  private static users: User[] = [
-    {
-      id: 1,
-      name: 'Əliyev Cavid',
-      email: 'cavid@q360.az',
-      role: 'admin',
-      department: 'İT Departamenti'
-    },
-    {
-      id: 2,
-      name: 'Məmmədova Leyla',
-      email: 'leyla@q360.az',
-      role: 'manager',
-      department: 'İT Departamenti'
-    },
-    {
-      id: 3,
-      name: 'Həsənov Rəşad',
-      email: 'rashad@q360.az',
-      role: 'employee',
-      department: 'İT Departamenti'
-    }
-  ];
+const API_BASE_URL = 'http://localhost:8000/api/auth';
 
-  static login(email: string, password: string): User | null {
-    // For demo purposes, we'll accept any password for our test users
-    // In a real app, this would check against a database
-    const user = this.users.find(u => u.email === email);
-    
-    if (user) {
-      // Save user to localStorage to simulate session
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return user;
+export class AuthService {
+  static async login(email: string, password: string): Promise<{user: User, access: string, refresh: string} | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/login/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: email, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const user = data.user;
+        // Save tokens and user to localStorage
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        return {user, access: data.access, refresh: data.refresh};
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
-    
-    return null;
   }
 
-  static logout(): void {
-    localStorage.removeItem('currentUser');
+  static async register(userData: any): Promise<{user: User, access: string, refresh: string} | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/register/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const user = data.user;
+        // Save tokens and user to localStorage
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        return {user, access: data.access, refresh: data.refresh};
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  }
+
+  static async logout(): Promise<void> {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        await fetch(`${API_BASE_URL}/logout/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage regardless of API call success
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('currentUser');
+    }
   }
 
   static getCurrentUser(): User | null {
@@ -58,5 +98,77 @@ export class AuthService {
 
   static isAuthenticated(): boolean {
     return !!this.getCurrentUser();
+  }
+
+  static getAccessToken(): string | null {
+    return localStorage.getItem('access_token');
+  }
+
+  static getRefreshToken(): string | null {
+    return localStorage.getItem('refresh_token');
+  }
+
+  static async passwordResetRequest(email: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/password-reset/request/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Password reset request failed');
+      }
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      throw error;
+    }
+  }
+
+  static async passwordResetConfirm(token: string, newPassword: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/password-reset/confirm/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          token, 
+          new_password: newPassword,
+          new_password_confirm: newPassword
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Password reset failed');
+      }
+    } catch (error) {
+      console.error('Password reset confirm error:', error);
+      throw error;
+    }
+  }
+
+  static async verifyEmail(token: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/verify-email/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Email verification failed');
+      }
+    } catch (error) {
+      console.error('Email verification error:', error);
+      throw error;
+    }
   }
 }
