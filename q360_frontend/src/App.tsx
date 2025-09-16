@@ -4,9 +4,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider } from './context/ThemeProvider';
 import { AuthService } from './services/AuthService';
 import LoginPage from './pages/LoginPage';
+import RegistrationPage from './pages/RegistrationPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
+import EnhancedProfilePage from './pages/EnhancedProfilePage';
 import EvaluationForm from './pages/EvaluationForm';
+import EnhancedEvaluationForm from './pages/EnhancedEvaluationForm';
 import ReportsPage from './pages/ReportsPage';
 import TeamDashboard from './pages/TeamDashboard';
 import AdminPanel from './pages/AdminPanel';
@@ -53,15 +58,35 @@ function App() {
               element={isLoggedIn ? <Navigate to="/dashboard" /> : <LoginPage />} 
             />
             <Route 
+              path="/register" 
+              element={isLoggedIn ? <Navigate to="/dashboard" /> : <RegistrationPage />} 
+            />
+            <Route 
+              path="/forgot-password" 
+              element={isLoggedIn ? <Navigate to="/dashboard" /> : <ForgotPasswordPage />} 
+            />
+            <Route 
+              path="/reset-password" 
+              element={isLoggedIn ? <Navigate to="/dashboard" /> : <ResetPasswordPage />} 
+            />
+            <Route 
               path="/dashboard" 
               element={isLoggedIn ? <Dashboard onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
             />
             <Route 
               path="/profile" 
+              element={isLoggedIn ? <EnhancedProfilePage onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/profile-basic" 
               element={isLoggedIn ? <ProfilePage onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
             />
             <Route 
               path="/evaluation" 
+              element={isLoggedIn ? <EnhancedEvaluationForm onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/evaluation-basic" 
               element={isLoggedIn ? <EvaluationForm onLogout={handleLogout} currentUser={currentUser} /> : <Navigate to="/login" />} 
             />
             <Route 
