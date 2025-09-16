@@ -1,7 +1,19 @@
 {
-  "name": "q360",
-  "version": "0.1.0",
-  "private": true,
+  "name": "q360-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Q360 Performance Management Platform",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint": "eslint src/**/*.{js,jsx,ts,tsx}",
+    "lint:fix": "eslint --fix src/**/*.{js,jsx,ts,tsx}",
+    "format": "prettier --write src/**/*.{js,jsx,ts,tsx,json,css,md}",
+    "format:check": "prettier --check src/**/*.{js,jsx,ts,tsx,json,css,md}",
+    "type-check": "tsc --noEmit"
+  },
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.8.0",
@@ -21,11 +33,13 @@
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.30.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^2.7.0"
   },
   "eslintConfig": {
     "extends": [

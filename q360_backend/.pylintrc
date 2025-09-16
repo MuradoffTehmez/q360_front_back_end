@@ -1,0 +1,174 @@
+[MASTER]
+# Use multiple processes to speed up Pylint.
+jobs=1
+
+# List of plugins (as comma separated values of python modules names) to load.
+load-plugins=
+
+# Pickle collected data for later comparisons.
+persistent=yes
+
+# Specify a configuration file.
+#rcfile=
+
+# When enabled, pylint would attempt to guess common misconfiguration and emit
+# user-friendly hints instead of false-positive error messages.
+suggestion-mode=yes
+
+[MESSAGES CONTROL]
+# Only show warnings with the listed confidence levels. Leave empty to show
+# all. Valid levels: HIGH, INFERENCE, INFERENCE_FAILURE, UNDEFINED
+confidence=
+
+# Disable the message, report, category or checker with the given id(s).
+disable=missing-docstring,
+        invalid-name,
+        too-few-public-methods,
+        too-many-ancestors,
+        no-self-use,
+        too-many-arguments,
+        too-many-locals,
+        too-many-branches,
+        too-many-statements,
+        too-many-return-statements,
+        too-many-instance-attributes,
+        too-many-public-methods,
+        too-many-lines,
+        too-many-nested-blocks,
+        too-many-boolean-expressions,
+        too-many-format-args,
+        too-many-function-args,
+        attribute-defined-outside-init,
+        arguments-differ,
+        broad-except,
+        duplicate-code,
+        fixme,
+        global-statement,
+        import-error,
+        import-self,
+        logging-fstring-interpolation,
+        missing-module-docstring,
+        no-member,
+        no-name-in-module,
+        protected-access,
+        raise-missing-from,
+        redefined-builtin,
+        too-many-ancestors,
+        unused-argument,
+        wrong-import-order,
+        wrong-import-position
+
+# Enable the message, report, category or checker with the given id(s).
+enable=c-extension-no-member
+
+[REPORTS]
+# Set the output format. Available formats are text, parseable, colorized, msvs
+# (visual studio) and html. You can also give a reporter class, eg
+# mypackage.mymodule.MyReporterClass.
+output-format=text
+
+# Tells whether to display a full report or only the messages
+reports=no
+
+# Python code to execute, usually for sys.path manipulation such as
+# pygtk.require().
+init-hook=
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=88
+
+# Regexp for a line that is allowed to be longer than the limit.
+ignore-long-lines=^\s*(# )?<?https?://\S+>?$
+
+# Allow the body of an if to be on the same line as the test if there is no
+# else.
+single-line-if-stmt=no
+
+# List of optional constructs for which whitespace checking is disabled.
+no-space-check=trailing-comma,
+               dict-separator
+
+# Maximum number of lines in a module
+max-module-lines=1000
+
+# String used as indentation unit. This is usually "    " (4 spaces) or "\t" (1
+# tab).
+indent-string='    '
+
+# Number of spaces of indent required inside a hanging  or continued line.
+indent-after-paren=4
+
+# Expected format of line ending, e.g. empty (any line ending), LF or CRLF.
+expected-line-ending-format=
+
+[MISCELLANEOUS]
+# List of note tags to take in consideration, separated by a comma.
+notes=FIXME,
+      XXX,
+      TODO
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked
+# (useful for modules/projects where namespaces are manipulated during runtime
+# and thus existing member attributes cannot be deduced by static analysis). It
+# supports qualified module names, as well as Unix shell-style wildcards.
+ignored-modules=
+
+# List of class names for which member attributes should not be checked (useful
+# for classes with dynamically set attributes). This supports the use of
+# qualified names.
+ignored-classes=WSGIRequest,
+                django.utils.functional.SimpleLazyObject,
+                django.utils.six.moves.urllib.parse.ParseResult
+
+# List of members which are set dynamically and missed by pylint inference
+# system, and so shouldn't trigger E1101 when accessed.
+generated-members=REQUEST,
+                  acl_users,
+                  aq_parent,
+                  objects,
+                  context,
+                  schema,
+                  request,
+                  user,
+                  pk,
+                  id,
+                  _meta
+
+[VARIABLES]
+# Tells whether we should check for unused import in __init__ files.
+init-import=no
+
+# A regular expression matching the name of dummy variables (i.e. expectedly
+# not used).
+dummy-variables-rgx=_$|dummy|ignored_|unused_
+
+# List of additional names supposed to be defined in builtins. Remember that
+# you should avoid to define new builtins when possible.
+additional-builtins=
+
+[LOGGING]
+# Logging modules to check that the string format arguments are in logging
+# function parameter format
+logging-modules=logging, django.utils.log
+
+[CLASSES]
+# List of method names used to declare (i.e. assign) instance attributes.
+defining-attr-methods=__init__,
+                      __new__,
+                      setUp
+
+# List of member names, which should be excluded from the protected access
+# warning.
+exclude-protected=_asdict,
+                  _fields,
+                  _replace,
+                  _source,
+                  _make
+
+[EXCEPTIONS]
+# Exceptions that will emit a warning when being caught. Defaults to
+# "BaseException, Exception".
+overgeneral-exceptions=BaseException,
+                       Exception

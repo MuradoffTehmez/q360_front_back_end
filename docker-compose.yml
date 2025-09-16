@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:14
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: q360_dev
+      POSTGRES_USER: q360_user
+      POSTGRES_PASSWORD: q360_pass
+    ports:
+      - "5432:5432"
+
+  # Redis for caching and background tasks
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  # Backend Django application
+  backend:
+    build:
+      context: ./q360_backend
+      dockerfile: Dockerfile.dev
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./q360_backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=postgresql://q360_user:q360_pass@db:5432/q360_dev
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+  # Frontend React application
+  frontend:
+    build:
+      context: ./q360_frontend
+      dockerfile: Dockerfile.dev
+    command: npm start
+    volumes:
+      - ./q360_frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
