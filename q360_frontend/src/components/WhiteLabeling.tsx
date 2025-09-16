@@ -15,8 +15,7 @@ const WhiteLabeling: React.FC<WhiteLabelingProps> = ({ onSave }) => {
     primaryColor: '#007BFF',
     logo: '',
     favicon: '',
-    emailSignature: 'Hörmətlə,
-{companyName} Komandası'
+    emailSignature: 'Hörmətlə,\n{companyName} Komandası'
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -39,8 +38,7 @@ const WhiteLabeling: React.FC<WhiteLabelingProps> = ({ onSave }) => {
       primaryColor: '#007BFF',
       logo: '',
       favicon: '',
-      emailSignature: 'Hörmətlə,
-{companyName} Komandası'
+      emailSignature: 'Hörmətlə,\n{companyName} Komandası'
     });
   };
 
