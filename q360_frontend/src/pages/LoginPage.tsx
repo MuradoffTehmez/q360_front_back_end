@@ -12,8 +12,8 @@ const LoginPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('cavid@q360.az');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({
     email: '',
     password: '',

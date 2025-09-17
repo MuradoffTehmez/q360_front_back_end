@@ -43,9 +43,7 @@ const IdeaDetailPage: React.FC = () => {
         if (id) {
           const ideaData = await IdeasService.getIdea(parseInt(id));
           setIdea(ideaData);
-          
-          const commentsData = await IdeasService.getIdeaComments(parseInt(id));
-          setComments(commentsData);
+          setComments(ideaData.comments);
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load idea details');
@@ -64,7 +62,7 @@ const IdeaDetailPage: React.FC = () => {
     if (!id || !idea) return;
     
     try {
-      const result = await IdeasService.upvoteIdea(parseInt(id));
+      const result = await IdeasService.voteOnIdea(parseInt(id));
       setIdea({
         ...idea,
         likes_count: result.likes_count
@@ -72,21 +70,6 @@ const IdeaDetailPage: React.FC = () => {
     } catch (err: any) {
       console.error('Error upvoting idea:', err);
       alert('Upvoting failed: ' + err.message);
-    }
-  };
-
-  const handleDownvote = async () => {
-    if (!id || !idea) return;
-    
-    try {
-      const result = await IdeasService.downvoteIdea(parseInt(id));
-      setIdea({
-        ...idea,
-        likes_count: result.likes_count
-      });
-    } catch (err: any) {
-      console.error('Error downvoting idea:', err);
-      alert('Downvoting failed: ' + err.message);
     }
   };
 
@@ -167,7 +150,7 @@ const IdeaDetailPage: React.FC = () => {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', minHeight: '100vh' }>
         <Sidebar 
           activePage={activePage} 
           onNavigate={handleNavigate} 
@@ -383,23 +366,6 @@ const IdeaDetailPage: React.FC = () => {
               >
                 <ThumbsUp size={16} />
                 <span>{idea.likes_count} Upvote</span>
-              </button>
-              
-              <button 
-                onClick={handleDownvote}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 'var(--spacing-xs)',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--secondary-text-color)',
-                  cursor: 'pointer',
-                  padding: 'var(--spacing-xs) 0'
-                }}
-              >
-                <ThumbsUp size={16} style={{ transform: 'rotate(180deg)' }} />
-                <span>Downvote</span>
               </button>
               
               <div style={{ 

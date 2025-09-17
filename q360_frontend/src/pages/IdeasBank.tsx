@@ -50,33 +50,18 @@ const IdeasBank: React.FC = () => {
     }
   }, [user]);
 
-  // Handle upvoting an idea
-  const handleUpvote = async (ideaId: number) => {
+  // Handle voting on an idea
+  const handleVote = async (ideaId: number) => {
     try {
-      const result = await IdeasService.upvoteIdea(ideaId);
+      const result = await IdeasService.voteOnIdea(ideaId);
       setIdeas(ideas.map(idea => 
         idea.id === ideaId 
           ? { ...idea, likes_count: result.likes_count } 
           : idea
       ));
     } catch (err: any) {
-      console.error('Error upvoting idea:', err);
-      alert('Upvoting failed: ' + err.message);
-    }
-  };
-
-  // Handle downvoting an idea
-  const handleDownvote = async (ideaId: number) => {
-    try {
-      const result = await IdeasService.downvoteIdea(ideaId);
-      setIdeas(ideas.map(idea => 
-        idea.id === ideaId 
-          ? { ...idea, likes_count: result.likes_count } 
-          : idea
-      ));
-    } catch (err: any) {
-      console.error('Error downvoting idea:', err);
-      alert('Downvoting failed: ' + err.message);
+      console.error('Error voting on idea:', err);
+      alert('Voting failed: ' + err.message);
     }
   };
 
@@ -98,6 +83,13 @@ const IdeasBank: React.FC = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar 
+          activePage={activePage} 
+          onNavigate={handleNavigate} 
+          onLogout={handleLogout} 
+          currentUser={user}
+        />
+        
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
           <Header title="İdeya Bankı" />
           <main style={{ 
@@ -125,6 +117,13 @@ const IdeasBank: React.FC = () => {
   if (error) {
     return (
       <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar 
+          activePage={activePage} 
+          onNavigate={handleNavigate} 
+          onLogout={handleLogout} 
+          currentUser={user}
+        />
+        
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '250px' }}>
           <Header title="İdeya Bankı" />
           <main style={{ 
@@ -315,7 +314,7 @@ const IdeasBank: React.FC = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleUpvote(idea.id);
+                            handleVote(idea.id);
                           }}
                           style={{ 
                             display: 'flex', 
@@ -335,7 +334,7 @@ const IdeasBank: React.FC = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDownvote(idea.id);
+                            navigate(`/idea/${idea.id}`);
                           }}
                           style={{ 
                             display: 'flex', 

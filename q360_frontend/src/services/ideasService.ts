@@ -100,33 +100,13 @@ export class IdeasService {
     }
   }
 
-  static async upvoteIdea(id: number): Promise<{message: string, likes_count: number}> {
+  static async voteOnIdea(id: number): Promise<{message: string, likes_count: number}> {
     try {
-      const response = await apiClient.post(`/ideas/${id}/upvote/`);
+      const response = await apiClient.post(`/ideas/${id}/like/`);
       return response.data;
     } catch (error: any) {
-      console.error('Error upvoting idea:', error);
-      throw new Error(error.response?.data?.detail || error.message || 'Failed to upvote idea');
-    }
-  }
-
-  static async downvoteIdea(id: number): Promise<{message: string, likes_count: number}> {
-    try {
-      const response = await apiClient.post(`/ideas/${id}/downvote/`);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error downvoting idea:', error);
-      throw new Error(error.response?.data?.detail || error.message || 'Failed to downvote idea');
-    }
-  }
-
-  static async getIdeaComments(ideaId: number): Promise<IdeaComment[]> {
-    try {
-      const response = await apiClient.get(`/ideas/${ideaId}/comments/`);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching idea comments:', error);
-      throw new Error(error.response?.data?.detail || error.message || 'Failed to fetch idea comments');
+      console.error('Error voting on idea:', error);
+      throw new Error(error.response?.data?.detail || error.message || 'Failed to vote on idea');
     }
   }
 
