@@ -205,8 +205,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Mock performance data - in a real app, this would come from the API
-  const performanceData = [
+  // Extract performance data from dashboardData
+  const performanceData = dashboardData?.performance_data || [
     { month: 'Yan', score: 75 },
     { month: 'Fev', score: 80 },
     { month: 'Mar', score: 78 },
@@ -215,8 +215,8 @@ const Dashboard: React.FC = () => {
     { month: 'İyn', score: 87 },
   ];
 
-  // Mock radar chart data - in a real app, this would come from the API
-  const radarData = [
+  // Extract radar chart data from dashboardData
+  const radarData = dashboardData?.radar_data || [
     { subject: 'Əməkdaşlıq', A: 120, fullMark: 150 },
     { subject: 'İnisiativlik', A: 110, fullMark: 150 },
     { subject: 'İnkişaf', A: 130, fullMark: 150 },
@@ -225,8 +225,8 @@ const Dashboard: React.FC = () => {
     { subject: 'İdarəetmə', A: 85, fullMark: 150 },
   ];
 
-  // Mock tasks data - in a real app, this would come from the API
-  const tasks = [
+  // Extract tasks from dashboardData
+  const tasks = dashboardData?.tasks || [
     { id: 1, title: 'İşçilərin qiymətləndirilməsi', dueDate: '2023-10-20', priority: 'high' as const, completed: false },
     { id: 2, title: 'Performans hesabatı təqdimatı', dueDate: '2023-10-22', priority: 'medium' as const, completed: false },
     { id: 3, title: 'Komanda görüşü hazırlığı', dueDate: '2023-10-25', priority: 'low' as const, completed: true },

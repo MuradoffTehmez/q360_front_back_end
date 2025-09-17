@@ -73,18 +73,11 @@ apiClient.interceptors.response.use(
 export class AuthService {
   static async login(email: string, password: string): Promise<{user: User, access: string, refresh: string}> {
     try {
-      const response = await apiClient.post('/login/', { 
-        username: email, 
+      // Using the correct Django REST framework JWT endpoint
+      const response = await apiClient.post('/token/', { 
+        email, 
         password 
       });
-
-      if (response.data.mfa_required) {
-        // Return MFA required indicator
-        return { 
-          mfaRequired: true, 
-          userId: response.data.user_id 
-        } as any;
-      }
       
       const { user, access, refresh } = response.data;
       
@@ -156,7 +149,7 @@ export class AuthService {
   }
 
   static isAuthenticated(): boolean {
-    return !!this.getCurrentUser();
+    return !!localStorage.getItem('access_token');
   }
 
   static getAccessToken(): string | null {
@@ -251,7 +244,7 @@ export class AuthService {
   // New method to fetch current user data from backend
   static async fetchCurrentUser(): Promise<User | null> {
     try {
-      const response = await apiClient.get('/me/');
+      const response = await apiClient.get('/user/');
       const user = response.data;
       
       // Update user in localStorage

@@ -22,6 +22,26 @@ export interface DashboardData {
   my_ideas?: number;
   performance_score?: number;
   
+  // Chart data
+  performance_data?: Array<{
+    month: string;
+    score: number;
+  }>;
+  
+  radar_data?: Array<{
+    subject: string;
+    A: number;
+    fullMark: number;
+  }>;
+  
+  tasks?: Array<{
+    id: number;
+    title: string;
+    dueDate: string;
+    priority: 'high' | 'medium' | 'low';
+    completed: boolean;
+  }>;
+  
   // Common data
   recent_activities: Array<{
     id: number;
